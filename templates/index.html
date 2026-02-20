@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>claw-setup \u2014 PicoClaw Setup Wizard</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3350;
+    --accent: #6c63ff;
+    --accent2: #00d4aa;
+    --danger: #ff4f4f;
+    --warning: #ffb547;
+    --text: #e8eaf6;
+    --text2: #8b90b0;
+    --success: #00d4aa;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 15px;
+    min-height: 100vh;
+  }
+  header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+  }
+  header .logo { font-size: 22px; }
+  header h1 { font-size: 18px; font-weight: 600; }
+  header span { color: var(--text2); font-size: 13px; margin-left: auto; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    min-height: calc(100vh - 61px);
+  }
+
+  /* Sidebar */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 20px 0;
+    position: sticky;
+    top: 0;
+    height: calc(100vh - 61px);
+    overflow-y: auto;
+  }
+  .sidebar-title {
+    padding: 0 20px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text2);
+  }
+  .step-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: background 0.15s;
+    border-left: 3px solid transparent;
+  }
+  .step-item:hover { background: var(--surface2); }
+  .step-item.active {
+    background: var(--surface2);
+    border-left-color: var(--accent);
+  }
+  .step-icon {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+    background: var(--surface2);
+    border: 2px solid var(--border);
+    flex-shrink: 0;
+    transition: all 0.2s;
+  }
+  .step-item.done .step-icon {
+    background: var(--success);
+    border-color: var(--success);
+    color: #000;
+  }
+  .step-item.active .step-icon {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .step-item.error .step-icon {
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+  .step-label { font-size: 13px; }
+  .step-sub { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+  /* Main content */
+  .main { padding: 32px; max-width: 720px; }
+
+  .section { display: none; }
+  .section.active { display: block; }
+
+  h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .subtitle { color: var(--text2); font-size: 14px; margin-bottom: 28px; }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text2);
+    margin-bottom: 14px;
+  }
+
+  /* Status rows */
+  .status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .status-row:last-child { border-bottom: none; }
+  .status-label { font-size: 14px; }
+  .status-value { font-size: 13px; color: var(--text2); }
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 20px;
+    font-size: 12px; font-weight: 600;
+  }
+  .badge.ok { background: rgba(0,212,170,0.15); color: var(--success); }
+  .badge.fail { background: rgba(255,79,79,0.15); color: var(--danger); }
+  .badge.warn { background: rgba(255,181,71,0.15); color: var(--warning); }
+  .badge.pending { background: var(--surface2); color: var(--text2); }
+
+  /* Forms */
+  .form-group { margin-bottom: 18px; }
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--text2);
+  }
+  input[type=text], input[type=password], textarea, select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s;
+    font-family: inherit;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--accent);
+  }
+  textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+  .hint { font-size: 12px; color: var(--text2); margin-top: 5px; }
+
+  /* Provider cards */
+  .provider-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .provider-card {
+    background: var(--surface2);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .provider-card:hover { border-color: var(--accent); }
+  .provider-card.selected { border-color: var(--accent); background: rgba(108,99,255,0.1); }
+  .provider-card .provider-name { font-weight: 600; font-size: 14px; margin-bottom: 3px; }
+  .provider-card .provider-hint { font-size: 11px; color: var(--text2); }
+
+  /* Model select - shown per provider */
+  .model-options { display: none; }
+  .model-options.visible { display: block; }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #7b73ff; }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--accent); }
+  .btn-success { background: var(--success); color: #000; }
+  .btn-row { display: flex; gap: 10px; align-items: center; margin-top: 20px; }
+
+  /* Alert boxes */
+  .alert {
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin: 12px 0;
+    display: none;
+  }
+  .alert.visible { display: block; }
+  .alert.success { background: rgba(0,212,170,0.1); border: 1px solid var(--success); color: var(--success); }
+  .alert.error { background: rgba(255,79,79,0.1); border: 1px solid var(--danger); color: var(--danger); }
+  .alert.info { background: rgba(108,99,255,0.1); border: 1px solid var(--accent); color: #a9a3ff; }
+
+  /* Steps guide */
+  .guide-step {
+    display: flex;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .guide-step:last-child { border-bottom: none; }
+  .guide-num {
+    width: 26px; height: 26px;
+    background: var(--accent);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .guide-text { font-size: 14px; line-height: 1.6; }
+  .guide-text code {
+    background: var(--surface2);
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--accent2);
+  }
+  .guide-text a { color: var(--accent2); }
+
+  /* Soul preview */
+  #soul-preview {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    font-size: 13px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    max-height: 400px;
+    overflow-y: auto;
+    display: none;
+  }
+
+  /* Final checklist */
+  .final-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .final-item:last-child { border-bottom: none; }
+  .check { font-size: 18px; }
+
+  /* Loading spinner */
+  .spinner {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Progress bar */
+  .progress-bar {
+    height: 3px;
+    background: var(--border);
+    border-radius: 3px;
+    margin-bottom: 28px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+
+  @media (max-width: 640px) {
+    .layout { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .provider-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">\ud83e\udd90</div>
+  <h1>claw-setup</h1>
+  <span>PicoClaw Setup Wizard</span>
+</header>
+
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-title">Setup Steps</div>
+    <div class="step-item active" id="nav-0" onclick="goTo(0)">
+      <div class="step-icon" id="icon-0">1</div>
+      <div>
+        <div class="step-label">System Check</div>
+        <div class="step-sub">Verify installation</div>
+      </div>
+    </div>
+    <div class="step-item" id="nav-1" onclick="goTo(1)">
+      <div class="step-icon" id="icon-1">2</div>
+      <div>
+        <div class="step-label">LLM Provider</div>
+        <div class="step-sub">Connect your AI</div>
+      </div>
+    </div>
+    <div class="step-item" id="nav-2" onclick="goTo(2)">
+      <div class="step-icon" id="icon-2">3</div>
+      <div>
+        <div class="step-label">Telegram</div>
+        <div class="step-sub">Your chat channel</div>
+      </div>
+    </div>
+    <div class="step-item" id="nav-3" onclick="goTo(3)">
+      <div class="step-icon" id="icon-3">4</div>
+      <div>
+        <div class="step-label">Your Twin</div>
+        <div class="step-sub">Build your SOUL.md</div>
+      </div>
+    </div>
+    <div class="step-item" id="nav-4" onclick="goTo(4)">
+      <div class="step-icon" id="icon-4">5</div>
+      <div>
+        <div class="step-label">Launch</div>
+        <div class="step-sub">Go live</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+
+    <div class="progress-bar"><div class="progress-fill" id="progress" style="width:10%"></div></div>
+
+    <!-- STEP 0: System Check -->
+    <div class="section active" id="step-0">
+      <h2>System Check</h2>
+      <p class="subtitle">Let's verify everything is in place before we configure anything.</p>
+
+      <div class="card">
+        <div class="card-title">System Status</div>
+        <div id="system-rows">
+          <div class="status-row">
+            <span class="status-label">Checking system...</span>
+            <span><div class="spinner"></div></span>
+          </div>
+        </div>
+      </div>
+
+      <div id="sys-alert" class="alert"></div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="runSystemCheck()">\u21bb Refresh</button>
+        <button class="btn btn-primary" id="btn-sys-next" disabled onclick="goTo(1)">
+          Continue \u2192
+        </button>
+      </div>
+    </div>
+
+    <!-- STEP 1: LLM Provider -->
+    <div class="section" id="step-1">
+      <h2>LLM Provider</h2>
+      <p class="subtitle">Choose which AI brain powers your twin. OpenRouter is recommended \u2014 one key, all models.</p>
+
+      <div class="provider-grid">
+        <div class="provider-card selected" onclick="selectProvider('openrouter')" id="pcard-openrouter">
+          <div class="provider-name">OpenRouter</div>
+          <div class="provider-hint">Recommended \u00b7 All models</div>
+        </div>
+        <div class="provider-card" onclick="selectProvider('anthropic')" id="pcard-anthropic">
+          <div class="provider-name">Anthropic</div>
+          <div class="provider-hint">Claude models direct</div>
+        </div>
+        <div class="provider-card" onclick="selectProvider('gemini')" id="pcard-gemini">
+          <div class="provider-name">Gemini</div>
+          <div class="provider-hint">Google \u00b7 Free tier available</div>
+        </div>
+        <div class="provider-card" onclick="selectProvider('groq')" id="pcard-groq">
+          <div class="provider-name">Groq</div>
+          <div class="provider-hint">Very fast \u00b7 Free tier</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="form-group">
+          <label>API Key</label>
+          <input type="password" id="llm-key" placeholder="Paste your API key here" />
+          <div class="hint" id="llm-key-hint">
+            Get your free key at <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--accent2)">openrouter.ai/keys</a>
+          </div>
+        </div>
+        <div class="form-group model-options visible" id="model-group">
+          <label>Model</label>
+          <select id="llm-model">
+            <option value="anthropic/claude-sonnet-4-6">Claude Sonnet 4.6 (Recommended)</option>
+            <option value="anthropic/claude-haiku-4-5-20251001">Claude Haiku 4.5 (Faster/cheaper)</option>
+            <option value="google/gemini-flash-1.5">Gemini Flash 1.5 (Fast)</option>
+            <option value="meta-llama/llama-3.1-8b-instruct:free">Llama 3.1 8B (Free)</option>
+          </select>
+        </div>
+
+        <div id="llm-alert" class="alert"></div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" id="btn-validate-llm" onclick="validateLLM()">
+            Validate Key
+          </button>
+          <button class="btn btn-primary" id="btn-llm-next" disabled onclick="goTo(2)">
+            Continue \u2192
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2: Telegram -->
+    <div class="section" id="step-2">
+      <h2>Telegram Setup</h2>
+      <p class="subtitle">Create a Telegram bot and connect it to your twin. Takes about 3 minutes.</p>
+
+      <div class="card">
+        <div class="card-title">Step-by-Step Guide</div>
+        <div class="guide-step">
+          <div class="guide-num">1</div>
+          <div class="guide-text">
+            Open Telegram and search for <code>@BotFather</code> \u2014 it's the official bot that creates other bots.
+          </div>
+        </div>
+        <div class="guide-step">
+          <div class="guide-num">2</div>
+          <div class="guide-text">
+            Send the message <code>/newbot</code> and follow BotFather's instructions. Give your bot any name you like (e.g. "My Twin Bot").
+          </div>
+        </div>
+        <div class="guide-step">
+          <div class="guide-num">3</div>
+          <div class="guide-text">
+            BotFather will give you a token that looks like <code>123456789:ABCdef...</code> \u2014 paste it below.
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="form-group">
+          <label>Bot Token</label>
+          <input type="text" id="tg-token" placeholder="123456789:ABCdefGhIjKlmNoPQRsTuVwXyZ" />
+        </div>
+        <div id="tg-alert" class="alert"></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="validateTelegram()">Validate Token</button>
+        </div>
+      </div>
+
+      <div id="tg-userid-section" style="display:none">
+        <div class="card">
+          <div class="card-title">Your Telegram User ID</div>
+          <div class="guide-step">
+            <div class="guide-num">4</div>
+            <div class="guide-text">
+              Search for <code>@userinfobot</code> on Telegram and send it any message. It will reply with your User ID number.
+            </div>
+          </div>
+          <div class="guide-step">
+            <div class="guide-num">5</div>
+            <div class="guide-text">
+              Also open a chat with your new bot (search for its username) and send it <code>/start</code> \u2014 this activates it.
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:16px">
+            <label>Your Telegram User ID</label>
+            <input type="text" id="tg-userid" placeholder="123456789" />
+          </div>
+          <div id="tg-userid-alert" class="alert"></div>
+          <div class="btn-row">
+            <button class="btn btn-primary" onclick="saveTelegramUser()">Save User ID</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="tg-ping-section" style="display:none">
+        <div class="card">
+          <div class="card-title">Ping Test</div>
+          <p style="font-size:14px; color:var(--text2); margin-bottom:16px">
+            Let's send a real message to verify everything works end-to-end.
+          </p>
+          <div id="tg-ping-alert" class="alert"></div>
+          <div class="btn-row">
+            <button class="btn btn-primary" onclick="sendPing()">\ud83c\udfd3 Send Ping to My Telegram</button>
+            <button class="btn btn-primary" id="btn-tg-next" disabled onclick="goTo(3)">
+              Continue \u2192
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3: Soul -->
+    <div class="section" id="step-3">
+      <h2>Build Your Twin's Soul</h2>
+      <p class="subtitle">Answer these questions honestly. The more specific you are, the more it sounds like <em>you</em>.</p>
+
+      <div class="card">
+        <div class="form-group">
+          <label>Your Name</label>
+          <input type="text" id="soul-username" placeholder="e.g. Alex" />
+        </div>
+        <div class="form-group">
+          <label>What should your twin be called?</label>
+          <input type="text" id="soul-name" placeholder="e.g. Alex's Twin, Dev Assistant, The Real Alex..." />
+          <div class="hint">This is your twin's identity name</div>
+        </div>
+        <div class="form-group">
+          <label>What do you do? (your role / profession)</label>
+          <input type="text" id="soul-role" placeholder="e.g. Software developer, founder, freelancer building web apps" />
+        </div>
+        <div class="form-group">
+          <label>What are you genuinely expert in?</label>
+          <textarea id="soul-expertise" placeholder="e.g. Python, FastAPI, React, AWS. I've built SaaS products, know startup processes, understand product development end to end..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>How do you communicate naturally?</label>
+          <textarea id="soul-style" placeholder="e.g. Direct and brief. I don't pad things out. I give the answer first then explain if needed. I use plain language not corporate speak..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>What do you care most about getting done?</label>
+          <textarea id="soul-goals" placeholder="e.g. Shipping things fast, not over-engineering, making money, building things that actually help people..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>What annoys you / what would you never do?</label>
+          <textarea id="soul-dislikes" placeholder="e.g. Wasting time on meetings that could be emails, over-complicating simple things, saying yes to everything..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>How do you make decisions when things are unclear?</label>
+          <textarea id="soul-decisions" placeholder="e.g. I default to the simpler option. I'd rather ship something imperfect than wait for perfect. If in doubt I ask one clarifying question then act..."></textarea>
+        </div>
+
+        <div id="soul-alert" class="alert"></div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="generateSoul()">\u2728 Generate My SOUL.md</button>
+        </div>
+      </div>
+
+      <div id="soul-result" style="display:none">
+        <div class="card">
+          <div class="card-title">Preview \u2014 Your SOUL.md</div>
+          <pre id="soul-preview"></pre>
+          <div id="soul-save-alert" class="alert"></div>
+          <div class="btn-row">
+            <button class="btn btn-secondary" onclick="generateSoul()">\u21bb Regenerate</button>
+            <button class="btn btn-primary" onclick="saveSoul()">Save SOUL.md to Pi</button>
+            <button class="btn btn-primary" id="btn-soul-next" disabled onclick="goTo(4)">Continue \u2192</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 4: Launch -->
+    <div class="section" id="step-4">
+      <h2>Launch Your Twin \ud83d\ude80</h2>
+      <p class="subtitle">Everything's configured. Let's get PicoClaw running permanently on your Pi.</p>
+
+      <div class="card" id="final-checklist">
+        <div class="card-title">Final Checklist</div>
+        <div id="checklist-rows">
+          <div class="status-row"><span>Loading...</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Install as System Service</div>
+        <p style="font-size:14px; color:var(--text2); margin-bottom:16px">
+          This sets PicoClaw to start automatically on boot and restart if it crashes.
+          Your twin will always be available.
+        </p>
+        <div id="service-alert" class="alert"></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="installService()">\u26a1 Install & Start Service</button>
+        </div>
+      </div>
+
+      <div id="launch-success" style="display:none">
+        <div class="card" style="border-color: var(--success)">
+          <div style="text-align:center; padding: 20px 0">
+            <div style="font-size:48px; margin-bottom:12px">\ud83c\udf89</div>
+            <div style="font-size:20px; font-weight:700; margin-bottom:8px">Your twin is live!</div>
+            <div style="color:var(--text2); font-size:14px; margin-bottom:20px">
+              Open Telegram and send your bot a message. It will respond as you.
+            </div>
+            <div style="background:var(--surface2); border-radius:8px; padding:14px; text-align:left; font-size:13px; margin-bottom:16px">
+              <div style="color:var(--text2); margin-bottom:8px">Useful commands on your Pi:</div>
+              <code style="display:block; color:var(--accent2); margin-bottom:4px">systemctl --user status picoclaw</code>
+              <code style="display:block; color:var(--accent2); margin-bottom:4px">systemctl --user restart picoclaw</code>
+              <code style="display:block; color:var(--accent2)">picoclaw agent -m "hello"</code>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+let currentStep = 0;
+let selectedProvider = 'openrouter';
+let systemData = {};
+let state = {
+  system: false,
+  llm: false,
+  telegram: false,
+  soul: false,
+  service: false
+};
+
+const progress = [10, 30, 55, 75, 95];
+
+// \u2500\u2500 Navigation \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+function goTo(n) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.step-item').forEach(s => s.classList.remove('active'));
+  document.getElementById(`step-${n}`).classList.add('active');
+  document.getElementById(`nav-${n}`).classList.add('active');
+  document.getElementById('progress').style.width = progress[n] + '%';
+  currentStep = n;
+  if (n === 0) runSystemCheck();
+  if (n === 1) populateLLM();
+  if (n === 2) populateTelegram();
+  if (n === 3) populateSoul();
+  if (n === 4) loadFinalChecklist();
+}
+
+function markDone(n) {
+  const icon = document.getElementById(`icon-${n}`);
+  const nav = document.getElementById(`nav-${n}`);
+  icon.textContent = '\u2713';
+  nav.classList.add('done');
+  nav.classList.remove('active');
+}
+
+function markError(n) {
+  document.getElementById(`nav-${n}`).classList.add('error');
+}
+
+function showAlert(id, type, msg) {
+  const el = document.getElementById(id);
+  el.className = `alert ${type} visible`;
+  el.textContent = msg;
+}
+
+function hideAlert(id) {
+  document.getElementById(id).className = 'alert';
+}
+
+// \u2500\u2500 Step 0: System Check \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+async function runSystemCheck() {
+  document.getElementById('system-rows').innerHTML = `
+    <div class="status-row">
+      <span class="status-label">Checking system...</span>
+      <span><div class="spinner"></div></span>
+    </div>`;
+
+  const r = await fetch('/api/system-check');
+  const data = await r.json();
+  systemData = data;
+
+  const rows = [
+    ['PicoClaw', data.picoclaw_installed, data.picoclaw_version || 'Not found'],
+    ['Disk Space', true, data.disk_space],
+    ['RAM', true, data.ram],
+    ['LLM Provider', data.has_provider, data.active_model ? `${data.active_model} (${data.active_provider})` : 'Not set'],
+    ['Telegram', data.has_telegram, data.telegram_token ? `Token: ${data.telegram_token}` : 'Not set'],
+    ['SOUL.md', data.has_soul, data.has_soul ? 'Found' : 'Not created'],
+    ['Service', data.service_status === 'active', data.service_status],
+  ];
+
+  document.getElementById('system-rows').innerHTML = rows.map(([label, ok, val]) => `
+    <div class="status-row">
+      <span class="status-label">${label}</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="status-value">${val}</span>
+        <span class="badge ${ok ? 'ok' : label === 'LLM Provider' || label === 'Telegram' || label === 'SOUL.md' || label === 'Service' ? 'warn' : 'fail'}">
+          ${ok ? '\u2713 OK' : '\u25cb Pending'}
+        </span>
+      </div>
+    </div>`).join('');
+
+  if (!data.picoclaw_installed) {
+    showAlert('sys-alert', 'error',
+      'PicoClaw not found. Install it first: wget https://github.com/sipeed/picoclaw/releases/latest/download/picoclaw-linux-arm64 && chmod +x picoclaw-linux-arm64 && sudo mv picoclaw-linux-arm64 /usr/local/bin/picoclaw');
+    markError(0);
+  } else {
+    hideAlert('sys-alert');
+    document.getElementById('btn-sys-next').disabled = false;
+    if (data.checklist.system) markDone(0);
+    if (data.checklist.provider) { markDone(1); state.llm = true; }
+    if (data.checklist.telegram) { markDone(2); state.telegram = true; }
+    if (data.checklist.soul) { markDone(3); state.soul = true; }
+    if (data.checklist.service) { markDone(4); state.service = true; }
+    state.system = true;
+  }
+}
+
+// Pre-fill LLM step if already configured
+if (data.active_model) {
+    document.getElementById('llm-model').value = data.active_model;
+}
+if (data.active_provider) {
+    selectProvider(data.active_provider);
+}
+// Pre-fill Telegram if already configured
+if (data.telegram_token) {
+    document.getElementById('tg-token').value = ''; // don't expose full token
+    showAlert('tg-alert', 'success', '✓ Telegram already configured — token ending ' + data.telegram_token);
+    document.getElementById('tg-userid-section').style.display = 'block';
+    document.getElementById('tg-ping-section').style.display = 'block';
+    document.getElementById('btn-tg-next').disabled = false;
+}
+if (data.telegram_user) {
+    document.getElementById('tg-userid').value = data.telegram_user;
+}
+
+// \u2500\u2500 Step 1: LLM \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+const providerModels = {
+  openrouter: {
+    hint: 'Get your free key at <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--accent2)">openrouter.ai/keys</a>',
+    models: [
+      ['anthropic/claude-sonnet-4-6', 'Claude Sonnet 4.6 (Recommended)'],
+      ['anthropic/claude-haiku-4-5-20251001', 'Claude Haiku 4.5 (Faster/cheaper)'],
+      ['google/gemini-flash-1.5', 'Gemini Flash 1.5'],
+      ['meta-llama/llama-3.1-8b-instruct:free', 'Llama 3.1 8B (Free)'],
+    ]
+  },
+  anthropic: {
+    hint: 'Get your key at <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent2)">console.anthropic.com</a>',
+    models: [
+      ['claude-sonnet-4-6', 'Claude Sonnet 4.6'],
+      ['claude-haiku-4-5-20251001', 'Claude Haiku 4.5'],
+    ]
+  },
+  gemini: {
+    hint: 'Get your free key at <a href="https://aistudio.google.com/api-keys" target="_blank" style="color:var(--accent2)">aistudio.google.com</a>',
+    models: [
+      ['gemini-1.5-flash', 'Gemini 1.5 Flash (Free tier)'],
+      ['gemini-1.5-pro', 'Gemini 1.5 Pro'],
+    ]
+  },
+  groq: {
+    hint: 'Get your free key at <a href="https://console.groq.com" target="_blank" style="color:var(--accent2)">console.groq.com</a>',
+    models: [
+      ['llama-3.1-8b-instant', 'Llama 3.1 8B (Fast + Free)'],
+      ['mixtral-8x7b-32768', 'Mixtral 8x7B'],
+    ]
+  }
+};
+
+function selectProvider(p) {
+  selectedProvider = p;
+  document.querySelectorAll('.provider-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById(`pcard-${p}`).classList.add('selected');
+  const info = providerModels[p];
+  document.getElementById('llm-key-hint').innerHTML = info.hint;
+  document.getElementById('llm-model').innerHTML = info.models
+    .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  document.getElementById('llm-key').value = '';
+  hideAlert('llm-alert');
+}
+
+async function validateLLM() {
+  const key = document.getElementById('llm-key').value.trim();
+  const model = document.getElementById('llm-model').value;
+  if (!key) { showAlert('llm-alert', 'error', 'Please enter your API key'); return; }
+
+  const btn = document.getElementById('btn-validate-llm');
+  btn.innerHTML = '<div class="spinner"></div> Validating...';
+  btn.disabled = true;
+
+  const fd = new FormData();
+  fd.append('provider', selectedProvider);
+  fd.append('api_key', key);
+  fd.append('model', model);
+
+  const r = await fetch('/api/validate-llm', { method: 'POST', body: fd });
+  const data = await r.json();
+
+  btn.innerHTML = 'Validate Key';
+  btn.disabled = false;
+
+  if (data.ok) {
+    showAlert('llm-alert', 'success', '\u2713 ' + data.message + ` \u2014 using ${model}`);
+    document.getElementById('btn-llm-next').disabled = false;
+    markDone(1);
+    state.llm = true;
+  } else {
+    showAlert('llm-alert', 'error', '\u2717 ' + data.message);
+    markError(1);
+  }
+}
+
+// \u2500\u2500 Step 2: Telegram \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+async function validateTelegram() {
+  const token = document.getElementById('tg-token').value.trim();
+  if (!token) { showAlert('tg-alert', 'error', 'Please enter your bot token'); return; }
+
+  const fd = new FormData();
+  fd.append('token', token);
+  showAlert('tg-alert', 'info', 'Validating token...');
+
+  const r = await fetch('/api/validate-telegram', { method: 'POST', body: fd });
+  const data = await r.json();
+
+  if (data.ok) {
+    showAlert('tg-alert', 'success', '\u2713 ' + data.message);
+    document.getElementById('tg-userid-section').style.display = 'block';
+  } else {
+    showAlert('tg-alert', 'error', '\u2717 ' + data.message);
+  }
+}
+
+async function saveTelegramUser() {
+  const uid = document.getElementById('tg-userid').value.trim();
+  if (!uid) { showAlert('tg-userid-alert', 'error', 'Please enter your User ID'); return; }
+
+  const fd = new FormData();
+  fd.append('user_id', uid);
+  const r = await fetch('/api/save-telegram-user', { method: 'POST', body: fd });
+  const data = await r.json();
+
+  if (data.ok) {
+    showAlert('tg-userid-alert', 'success', '\u2713 User ID saved');
+    document.getElementById('tg-ping-section').style.display = 'block';
+  }
+}
+
+async function sendPing() {
+  const uid = document.getElementById('tg-userid').value.trim();
+  showAlert('tg-ping-alert', 'info', 'Sending ping...');
+
+  const fd = new FormData();
+  fd.append('chat_id', uid);
+  const r = await fetch('/api/ping-telegram', { method: 'POST', body: fd });
+  const data = await r.json();
+
+  if (data.ok) {
+    showAlert('tg-ping-alert', 'success',
+      '\u2713 Ping sent! Check your Telegram \u2014 you should see a message from your bot. If you got it, continue.');
+    document.getElementById('btn-tg-next').disabled = false;
+    markDone(2);
+    state.telegram = true;
+  } else {
+    showAlert('tg-ping-alert', 'error', '\u2717 ' + data.message +
+      ' \u2014 Make sure you sent /start to your bot in Telegram first.');
+  }
+}
+
+// \u2500\u2500 Step 3: Soul \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+async function generateSoul() {
+  const fields = ['username', 'name', 'role', 'expertise', 'style', 'goals', 'dislikes', 'decisions'];
+  for (const f of fields) {
+    if (!document.getElementById(`soul-${f}`).value.trim()) {
+      showAlert('soul-alert', 'error', `Please fill in all fields \u2014 "${f}" is empty`);
+      return;
+    }
+  }
+
+  showAlert('soul-alert', 'info', 'Generating your SOUL.md...');
+
+  const fd = new FormData();
+  fields.forEach(f => fd.append(f === 'username' ? 'user_name' : f,
+    document.getElementById(`soul-${f}`).value.trim()));
+
+  const r = await fetch('/api/generate-soul', { method: 'POST', body: fd });
+  const data = await r.json();
+
+  hideAlert('soul-alert');
+  document.getElementById('soul-result').style.display = 'block';
+  const preview = document.getElementById('soul-preview');
+  preview.textContent = data.soul;
+  preview.style.display = 'block';
+  preview.dataset.soul = data.soul;
+}
+
+async function saveSoul() {
+  const soul = document.getElementById('soul-preview').dataset.soul;
+  if (!soul) return;
+
+  const fd = new FormData();
+  fd.append('soul_content', soul);
+  const r = await fetch('/api/save-soul', { method: 'POST', body: fd });
+  const data = await r.json();
+
+  if (data.ok) {
+    showAlert('soul-save-alert', 'success', '\u2713 SOUL.md saved to your Pi at ' + data.message.split('to ')[1]);
+    document.getElementById('btn-soul-next').disabled = false;
+    markDone(3);
+    state.soul = true;
+  } else {
+    showAlert('soul-save-alert', 'error', '\u2717 ' + data.message);
+  }
+}
+
+// \u2500\u2500 Step 4: Launch \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+async function loadFinalChecklist() {
+  const r = await fetch('/api/system-check');
+  const data = await r.json();
+
+  const items = [
+    ['PicoClaw installed', data.picoclaw_installed],
+    ['LLM provider configured', data.has_provider],
+    ['Telegram connected', data.has_telegram],
+    ['SOUL.md created', data.has_soul],
+    ['Service running', data.service_status === 'active'],
+  ];
+
+  document.getElementById('checklist-rows').innerHTML = items.map(([label, ok]) => `
+    <div class="final-item">
+      <span class="check">${ok ? '\u2705' : '\u2b55'}</span>
+      <span>${label}</span>
+    </div>`).join('');
+}
+
+async function installService() {
+  showAlert('service-alert', 'info', 'Installing systemd service...');
+  const r = await fetch('/api/install-service', { method: 'POST' });
+  const data = await r.json();
+
+  if (data.ok) {
+    showAlert('service-alert', 'success', '\u2713 ' + data.message);
+    document.getElementById('launch-success').style.display = 'block';
+    document.getElementById('progress').style.width = '100%';
+    markDone(4);
+    state.service = true;
+    loadFinalChecklist();
+  } else {
+    showAlert('service-alert', 'error', '\u2717 ' + data.message);
+  }
+}
+
+function populateLLM() {
+  if (!systemData.active_provider) return;
+  selectProvider(systemData.active_provider);
+  if (systemData.active_model) {
+    // try to select existing model in dropdown, else add it as option
+    const sel = document.getElementById('llm-model');
+    let found = false;
+    for (const opt of sel.options) {
+      if (opt.value === systemData.active_model) { opt.selected = true; found = true; break; }
+    }
+    if (!found) {
+      const opt = document.createElement('option');
+      opt.value = systemData.active_model;
+      opt.text = systemData.active_model + ' (current)';
+      opt.selected = true;
+      sel.insertBefore(opt, sel.firstChild);
+    }
+  }
+  if (systemData.has_provider) {
+    showAlert('llm-alert', 'success', '✓ Already configured — model: ' + systemData.active_model);
+    document.getElementById('btn-llm-next').disabled = false;
+    markDone(1);
+  }
+}
+
+function populateTelegram() {
+  if (!systemData.has_telegram) return;
+  showAlert('tg-alert', 'success', '✓ Telegram already configured — token: ' + systemData.telegram_token);
+  document.getElementById('tg-userid-section').style.display = 'block';
+  document.getElementById('tg-ping-section').style.display = 'block';
+  if (systemData.telegram_user) {
+    document.getElementById('tg-userid').value = systemData.telegram_user;
+    showAlert('tg-userid-alert', 'success', '✓ User ID already saved: ' + systemData.telegram_user);
+  }
+  document.getElementById('btn-tg-next').disabled = false;
+  markDone(2);
+}
+
+function populateSoul() {
+  if (!systemData.has_soul) return;
+  showAlert('soul-alert', 'success', '✓ SOUL.md already exists on this Pi — fill the form and regenerate to update it.');
+}
+
+// \u2500\u2500 Init \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+runSystemCheck();
+</script>
+
+</body>
+</html>
+
