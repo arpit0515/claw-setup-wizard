@@ -24,7 +24,7 @@ If you already have things configured, the wizard reads your existing config and
 
 ```bash
 # Download the binary for your platform
-wget https://github.com/yourusername/claw-setup-wizard/releases/latest/download/claw-setup-linux-arm64
+wget https://github.com/arpit0515/claw-setup-wizard/releases/latest/download/claw-setup-linux-arm64
 
 # Make it executable
 chmod +x claw-setup-linux-arm64
