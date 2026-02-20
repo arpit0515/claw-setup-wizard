@@ -16,10 +16,13 @@ func handleValidateLLM(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
-	r.ParseForm()
-	provider := r.FormValue("provider")
-	apiKey := r.FormValue("api_key")
-	model := r.FormValue("model")
+	r.ParseMultipartForm(10 << 20)
+
+	// DEBGGING
+
+	provider := strings.TrimSpace(r.FormValue("provider"))
+	apiKey := strings.TrimSpace(r.FormValue("api_key"))
+	model := strings.TrimSpace(r.FormValue("model"))
 
 	if provider == "" || apiKey == "" || model == "" {
 		errorResponse(w, "provider, api_key and model are required")
@@ -59,7 +62,7 @@ func handleValidateTelegram(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
-	r.ParseForm()
+	r.ParseMultipartForm(10 << 20)
 	token := r.FormValue("token")
 	if token == "" {
 		errorResponse(w, "token is required")
@@ -90,7 +93,7 @@ func handleSaveTelegramUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
-	r.ParseForm()
+	r.ParseMultipartForm(10 << 20)
 	userID := r.FormValue("user_id")
 	if userID == "" {
 		errorResponse(w, "user_id is required")
@@ -114,7 +117,7 @@ func handlePingTelegram(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
-	r.ParseForm()
+	r.ParseMultipartForm(10 << 20)
 	chatID := r.FormValue("chat_id")
 	if chatID == "" {
 		errorResponse(w, "chat_id is required")
@@ -147,7 +150,7 @@ func handleGenerateSoul(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
-	r.ParseForm()
+	r.ParseMultipartForm(10 << 20)
 
 	answers := SoulAnswers{
 		Name:      r.FormValue("name"),
@@ -172,7 +175,7 @@ func handleSaveSoul(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
-	r.ParseForm()
+	r.ParseMultipartForm(10 << 20)
 	content := r.FormValue("soul_content")
 	if content == "" {
 		errorResponse(w, "soul_content is required")
@@ -298,43 +301,51 @@ func handleInstallPicoclaw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var arch string
+	var picoArch string
 	switch strings.TrimSpace(out) {
 	case "aarch64":
-		arch = "arm64"
+	    picoArch = "arm64"
 	case "armv7l":
-		arch = "armv6l"
+	    picoArch = "arm"
 	case "x86_64":
-		arch = "amd64"
+	    picoArch = "x86_64"
 	default:
-		errorResponse(w, "Unsupported architecture: "+out)
-		return
+	    errorResponse(w, "Unsupported architecture: "+out)
+	    return
 	}
 
-	url := "https://github.com/sipeed/picoclaw/releases/latest/download/picoclaw-linux-" + arch
-	tmpPath := "/tmp/picoclaw"
+	tarName := "picoclaw_Linux_" + picoArch + ".tar.gz"
+	url := "https://github.com/sipeed/picoclaw/releases/latest/download/" + tarName
+	tmpTar := "/tmp/" + tarName
+	tmpDir := "/tmp/picoclaw-extract"
 	finalPath := "/usr/local/bin/picoclaw"
 
-	// Download
-	_, err = runCommand("wget", "-q", "-O", tmpPath, url)
+	// Download with redirect follow
+	_, err = runCommand("wget", "-L", "-q", "-O", tmpTar, url)
 	if err != nil {
-		errorResponse(w, "Download failed — check internet connection")
-		return
+	    errorResponse(w, "Download failed: "+err.Error())
+	    return
 	}
 
-	// Make executable
-	_, err = runCommand("chmod", "+x", tmpPath)
+	// Extract
+	os.MkdirAll(tmpDir, 0755)
+	_, err = runCommand("tar", "-xzf", tmpTar, "-C", tmpDir)
 	if err != nil {
-		errorResponse(w, "chmod failed: "+err.Error())
-		return
+	    errorResponse(w, "Extract failed: "+err.Error())
+	    return
 	}
 
-	// Move to bin (requires sudo)
-	_, err = runCommand("sudo", "mv", tmpPath, finalPath)
+	// Find the binary inside extracted folder
+	_, err = runCommand("sudo", "mv", tmpDir+"/picoclaw", finalPath)
 	if err != nil {
-		errorResponse(w, "Could not move to /usr/local/bin — try: sudo mv /tmp/picoclaw /usr/local/bin/picoclaw")
-		return
+	    // try root of extract dir
+	    errorResponse(w, "Could not find picoclaw binary in archive: "+err.Error())
+	    return
 	}
+
+	// Cleanup
+	os.Remove(tmpTar)
+	os.RemoveAll(tmpDir)
 
 	// Verify
 	path, err := exec.LookPath("picoclaw")
@@ -344,4 +355,29 @@ func handleInstallPicoclaw(w http.ResponseWriter, r *http.Request) {
 	}
 
 	okResponse(w, "PicoClaw installed at "+path, nil)
+}
+
+
+// ---- Handling Models
+
+func handleGetModels(w http.ResponseWriter, r *http.Request) {
+	r.ParseMultipartForm(10 << 20)
+	provider := strings.TrimSpace(r.FormValue("provider"))
+	apiKey := strings.TrimSpace(r.FormValue("api_key"))
+
+	if provider != "openrouter" || apiKey == "" {
+		errorResponse(w, "provider and api_key required")
+		return
+	}
+
+	models, err := fetchOpenRouterModels(apiKey)
+	if err != nil {
+		errorResponse(w, "Failed to fetch models: "+err.Error())
+		return
+	}
+
+	jsonResponse(w, map[string]interface{}{
+		"ok":     true,
+		"models": models,
+	})
 }

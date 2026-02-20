@@ -443,34 +443,42 @@
       </div>
 
       <div class="card">
-        <div class="form-group">
-          <label>API Key</label>
-          <input type="password" id="llm-key" placeholder="Paste your API key here" />
-          <div class="hint" id="llm-key-hint">
-            Get your free key at <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--accent2)">openrouter.ai/keys</a>
-          </div>
-        </div>
-        <div class="form-group model-options visible" id="model-group">
-          <label>Model</label>
-          <select id="llm-model">
-            <option value="anthropic/claude-sonnet-4-6">Claude Sonnet 4.6 (Recommended)</option>
-            <option value="anthropic/claude-haiku-4-5-20251001">Claude Haiku 4.5 (Faster/cheaper)</option>
-            <option value="google/gemini-flash-1.5">Gemini Flash 1.5 (Fast)</option>
-            <option value="meta-llama/llama-3.1-8b-instruct:free">Llama 3.1 8B (Free)</option>
-          </select>
-        </div>
+  <div class="form-group">
+    <label>API Key</label>
+    <input type="password" id="llm-key" placeholder="Paste your API key here" 
+           oninput="onKeyInput()" />
+    <div class="hint" id="llm-key-hint">
+      Get your free key at <a href="https://openrouter.ai/keys" target="_blank" 
+      style="color:var(--accent2)">openrouter.ai/keys</a>
+    </div>
+  </div>
+  <div class="form-group" id="model-group">
+    <label>Model</label>
+    <select id="llm-model">
+      <option value="">— paste your key and click Load Models —</option>
+    </select>
+    <div style="display:flex; gap:8px; margin-top:8px">
+      <button class="btn btn-secondary" id="btn-load-models" onclick="loadModels()" disabled>
+        ↻ Load Models
+      </button>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);margin:0">
+        <input type="checkbox" id="free-only" onchange="filterModels()" checked />
+        Free only
+      </label>
+    </div>
+  </div>
 
-        <div id="llm-alert" class="alert"></div>
+  <div id="llm-alert" class="alert"></div>
 
-        <div class="btn-row">
-          <button class="btn btn-primary" id="btn-validate-llm" onclick="validateLLM()">
-            Validate Key
-          </button>
-          <button class="btn btn-primary" id="btn-llm-next" disabled onclick="goTo(2)">
-            Continue \u2192
-          </button>
-        </div>
-      </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" id="btn-validate-llm" onclick="validateLLM()">
+      Validate Key
+    </button>
+    <button class="btn btn-primary" id="btn-llm-next" disabled onclick="goTo(2)">
+      Continue →
+    </button>
+  </div>
+</div>
     </div>
 
     <!-- STEP 2: Telegram -->
@@ -677,6 +685,39 @@ const progress = [10, 30, 55, 75, 95];
 
 // \u2500\u2500 Navigation \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
+const providerModels = {
+  openrouter: {
+    hint: 'Get your free key at <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--accent2)">openrouter.ai/keys</a>',
+    models: [
+      ['anthropic/claude-sonnet-4-6', 'Claude Sonnet 4.6 (Recommended)'],
+      ['anthropic/claude-haiku-4-5-20251001', 'Claude Haiku 4.5 (Faster/cheaper)'],
+      ['google/gemini-flash-1.5', 'Gemini Flash 1.5'],
+      ['meta-llama/llama-3.1-8b-instruct:free', 'Llama 3.1 8B (Free)'],
+    ]
+  },
+  anthropic: {
+    hint: 'Get your key at <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent2)">console.anthropic.com</a>',
+    models: [
+      ['claude-sonnet-4-6', 'Claude Sonnet 4.6'],
+      ['claude-haiku-4-5-20251001', 'Claude Haiku 4.5'],
+    ]
+  },
+  gemini: {
+    hint: 'Get your free key at <a href="https://aistudio.google.com/api-keys" target="_blank" style="color:var(--accent2)">aistudio.google.com</a>',
+    models: [
+      ['gemini-1.5-flash', 'Gemini 1.5 Flash (Free tier)'],
+      ['gemini-1.5-pro', 'Gemini 1.5 Pro'],
+    ]
+  },
+  groq: {
+    hint: 'Get your free key at <a href="https://console.groq.com" target="_blank" style="color:var(--accent2)">console.groq.com</a>',
+    models: [
+      ['llama-3.1-8b-instant', 'Llama 3.1 8B (Fast + Free)'],
+      ['mixtral-8x7b-32768', 'Mixtral 8x7B'],
+    ]
+  }
+};
+
 function goTo(n) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.step-item').forEach(s => s.classList.remove('active'));
@@ -764,59 +805,8 @@ async function runSystemCheck() {
   }
 }
 
-// Pre-fill LLM step if already configured
-if (data.active_model) {
-    document.getElementById('llm-model').value = data.active_model;
-}
-if (data.active_provider) {
-    selectProvider(data.active_provider);
-}
-// Pre-fill Telegram if already configured
-if (data.telegram_token) {
-    document.getElementById('tg-token').value = ''; // don't expose full token
-    showAlert('tg-alert', 'success', '✓ Telegram already configured — token ending ' + data.telegram_token);
-    document.getElementById('tg-userid-section').style.display = 'block';
-    document.getElementById('tg-ping-section').style.display = 'block';
-    document.getElementById('btn-tg-next').disabled = false;
-}
-if (data.telegram_user) {
-    document.getElementById('tg-userid').value = data.telegram_user;
-}
 
 // \u2500\u2500 Step 1: LLM \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-
-const providerModels = {
-  openrouter: {
-    hint: 'Get your free key at <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--accent2)">openrouter.ai/keys</a>',
-    models: [
-      ['anthropic/claude-sonnet-4-6', 'Claude Sonnet 4.6 (Recommended)'],
-      ['anthropic/claude-haiku-4-5-20251001', 'Claude Haiku 4.5 (Faster/cheaper)'],
-      ['google/gemini-flash-1.5', 'Gemini Flash 1.5'],
-      ['meta-llama/llama-3.1-8b-instruct:free', 'Llama 3.1 8B (Free)'],
-    ]
-  },
-  anthropic: {
-    hint: 'Get your key at <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent2)">console.anthropic.com</a>',
-    models: [
-      ['claude-sonnet-4-6', 'Claude Sonnet 4.6'],
-      ['claude-haiku-4-5-20251001', 'Claude Haiku 4.5'],
-    ]
-  },
-  gemini: {
-    hint: 'Get your free key at <a href="https://aistudio.google.com/api-keys" target="_blank" style="color:var(--accent2)">aistudio.google.com</a>',
-    models: [
-      ['gemini-1.5-flash', 'Gemini 1.5 Flash (Free tier)'],
-      ['gemini-1.5-pro', 'Gemini 1.5 Pro'],
-    ]
-  },
-  groq: {
-    hint: 'Get your free key at <a href="https://console.groq.com" target="_blank" style="color:var(--accent2)">console.groq.com</a>',
-    models: [
-      ['llama-3.1-8b-instant', 'Llama 3.1 8B (Fast + Free)'],
-      ['mixtral-8x7b-32768', 'Mixtral 8x7B'],
-    ]
-  }
-};
 
 function selectProvider(p) {
   selectedProvider = p;
@@ -824,8 +814,14 @@ function selectProvider(p) {
   document.getElementById(`pcard-${p}`).classList.add('selected');
   const info = providerModels[p];
   document.getElementById('llm-key-hint').innerHTML = info.hint;
-  document.getElementById('llm-model').innerHTML = info.models
-    .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  // only show load models for openrouter
+  document.getElementById('btn-load-models').style.display = p === 'openrouter' ? 'inline-flex' : 'none';
+  document.getElementById('free-only').parentElement.style.display = p === 'openrouter' ? 'flex' : 'none';
+  // reset model dropdown to static list for non-openrouter
+  if (p !== 'openrouter') {
+    document.getElementById('llm-model').innerHTML = info.models
+      .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  }
   document.getElementById('llm-key').value = '';
   hideAlert('llm-alert');
 }
@@ -833,6 +829,14 @@ function selectProvider(p) {
 async function validateLLM() {
   const key = document.getElementById('llm-key').value.trim();
   const model = document.getElementById('llm-model').value;
+
+console.log('key:', key);
+  console.log('model:', model);
+  console.log('selectedProvider:', selectedProvider);
+  console.log('key empty?', key === '');
+  console.log('model empty?', model === '');
+  console.log('provider empty?', selectedProvider === '');
+
   if (!key) { showAlert('llm-alert', 'error', 'Please enter your API key'); return; }
 
   const btn = document.getElementById('btn-validate-llm');
@@ -840,7 +844,7 @@ async function validateLLM() {
   btn.disabled = true;
 
   const fd = new FormData();
-  fd.append('provider', selectedProvider);
+  fd.append('provider', selectedProvider || 'openrouter');
   fd.append('api_key', key);
   fd.append('model', model);
 
@@ -1004,8 +1008,9 @@ async function installService() {
 }
 
 function populateLLM() {
-  if (!systemData.active_provider) return;
-  selectProvider(systemData.active_provider);
+  if (systemData.active_provider) {
+    selectProvider(systemData.active_provider);
+  }
   if (systemData.active_model) {
     // try to select existing model in dropdown, else add it as option
     const sel = document.getElementById('llm-model');
@@ -1064,6 +1069,49 @@ async function installPicoclaw() {
     btn.innerHTML = '⬇ Retry Install';
     btn.disabled = false;
   }
+}
+
+let allModels = [];
+
+function onKeyInput() {
+  const key = document.getElementById('llm-key').value.trim();
+  document.getElementById('btn-load-models').disabled = key.length < 10;
+}
+
+async function loadModels() {
+  const key = document.getElementById('llm-key').value.trim();
+  const btn = document.getElementById('btn-load-models');
+  btn.innerHTML = '<div class="spinner"></div>';
+  btn.disabled = true;
+
+  const fd = new FormData();
+  fd.append('provider', selectedProvider);
+  fd.append('api_key', key);
+
+  const r = await fetch('/api/models', { method: 'POST', body: fd });
+  const data = await r.json();
+
+  btn.innerHTML = '↻ Load Models';
+  btn.disabled = false;
+
+  if (!data.ok) {
+    showAlert('llm-alert', 'error', '✗ ' + data.message);
+    return;
+  }
+
+  allModels = data.models;
+  filterModels();
+  showAlert('llm-alert', 'success', `✓ Loaded ${data.models.length} models`);
+}
+
+function filterModels() {
+  const freeOnly = document.getElementById('free-only').checked;
+  const sel = document.getElementById('llm-model');
+  const filtered = freeOnly ? allModels.filter(m => m.free) : allModels;
+
+  sel.innerHTML = filtered.map(m =>
+    `<option value="${m.id}">${m.name}${m.free ? ' 🆓' : ''}</option>`
+  ).join('');
 }
 
 // \u2500\u2500 Init \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
