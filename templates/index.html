@@ -395,10 +395,25 @@
 
       <div id="sys-alert" class="alert"></div>
 
+<div id="install-picoclaw-section" style="display:none">
+  <div class="card" style="border-color: var(--warning)">
+    <div class="card-title">PicoClaw Not Found</div>
+    <p style="font-size:14px; color:var(--text2); margin-bottom:16px">
+      Click below to automatically download and install PicoClaw for your device.
+    </p>
+    <div id="install-alert" class="alert"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btn-install-picoclaw" onclick="installPicoclaw()">
+        ⬇ Install PicoClaw
+      </button>
+    </div>
+  </div>
+</div>
+
       <div class="btn-row">
-        <button class="btn btn-secondary" onclick="runSystemCheck()">\u21bb Refresh</button>
+        <button class="btn btn-secondary" onclick="runSystemCheck()">↻ Refresh</button>
         <button class="btn btn-primary" id="btn-sys-next" disabled onclick="goTo(1)">
-          Continue \u2192
+          Continue →
         </button>
       </div>
     </div>
@@ -733,10 +748,11 @@ async function runSystemCheck() {
     </div>`).join('');
 
   if (!data.picoclaw_installed) {
-    showAlert('sys-alert', 'error',
-      'PicoClaw not found. Install it first: wget https://github.com/sipeed/picoclaw/releases/latest/download/picoclaw-linux-arm64 && chmod +x picoclaw-linux-arm64 && sudo mv picoclaw-linux-arm64 /usr/local/bin/picoclaw');
-    markError(0);
+    showAlert('sys-alert', 'error', 'PicoClaw not found on this device.');
+  document.getElementById('install-picoclaw-section').style.display = 'block';
+  markError(0);
   } else {
+    document.getElementById('install-picoclaw-section').style.display = 'none';
     hideAlert('sys-alert');
     document.getElementById('btn-sys-next').disabled = false;
     if (data.checklist.system) markDone(0);
@@ -1028,6 +1044,26 @@ function populateTelegram() {
 function populateSoul() {
   if (!systemData.has_soul) return;
   showAlert('soul-alert', 'success', '✓ SOUL.md already exists on this Pi — fill the form and regenerate to update it.');
+}
+
+async function installPicoclaw() {
+  const btn = document.getElementById('btn-install-picoclaw');
+  btn.innerHTML = '<div class="spinner"></div> Installing...';
+  btn.disabled = true;
+  showAlert('install-alert', 'info', 'Downloading PicoClaw for your device...');
+
+  const r = await fetch('/api/install-picoclaw', { method: 'POST' });
+  const data = await r.json();
+
+  if (data.ok) {
+    showAlert('install-alert', 'success', '✓ ' + data.message);
+    document.getElementById('install-picoclaw-section').style.display = 'none';
+    setTimeout(() => runSystemCheck(), 1000);
+  } else {
+    showAlert('install-alert', 'error', '✗ ' + data.message);
+    btn.innerHTML = '⬇ Retry Install';
+    btn.disabled = false;
+  }
 }
 
 // \u2500\u2500 Init \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500

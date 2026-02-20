@@ -284,3 +284,64 @@ func getUptime() string {
 	return out
 }
 
+
+func handleInstallPicoclaw(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Detect architecture
+	out, err := runCommand("uname", "-m")
+	if err != nil {
+		errorResponse(w, "Could not detect architecture")
+		return
+	}
+
+	var arch string
+	switch strings.TrimSpace(out) {
+	case "aarch64":
+		arch = "arm64"
+	case "armv7l":
+		arch = "armv6l"
+	case "x86_64":
+		arch = "amd64"
+	default:
+		errorResponse(w, "Unsupported architecture: "+out)
+		return
+	}
+
+	url := "https://github.com/sipeed/picoclaw/releases/latest/download/picoclaw-linux-" + arch
+	tmpPath := "/tmp/picoclaw"
+	finalPath := "/usr/local/bin/picoclaw"
+
+	// Download
+	_, err = runCommand("wget", "-q", "-O", tmpPath, url)
+	if err != nil {
+		errorResponse(w, "Download failed — check internet connection")
+		return
+	}
+
+	// Make executable
+	_, err = runCommand("chmod", "+x", tmpPath)
+	if err != nil {
+		errorResponse(w, "chmod failed: "+err.Error())
+		return
+	}
+
+	// Move to bin (requires sudo)
+	_, err = runCommand("sudo", "mv", tmpPath, finalPath)
+	if err != nil {
+		errorResponse(w, "Could not move to /usr/local/bin — try: sudo mv /tmp/picoclaw /usr/local/bin/picoclaw")
+		return
+	}
+
+	// Verify
+	path, err := exec.LookPath("picoclaw")
+	if err != nil || path == "" {
+		errorResponse(w, "Installed but not found in PATH — restart the wizard")
+		return
+	}
+
+	okResponse(w, "PicoClaw installed at "+path, nil)
+}
