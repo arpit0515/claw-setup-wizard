@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>claw-setup \u2014 PicoClaw Setup Wizard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>claw-setup - PicoClaw Setup Wizard</title>
 <style>
   :root {
     --bg: #0f1117;
@@ -18,145 +18,232 @@
     --text2: #8b90b0;
     --success: #00d4aa;
     --radius: 12px;
+    --header-h: 56px;
+    --bottom-nav-h: 64px;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
   body {
     background: var(--bg);
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-size: 15px;
     min-height: 100vh;
+    min-height: 100dvh;
+    overscroll-behavior: none;
   }
+
+  /* ── Header ── */
   header {
-    padding: 20px 24px;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    height: var(--header-h);
+    padding: 0 16px;
+    padding-top: env(safe-area-inset-top);
     border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     background: var(--surface);
+    backdrop-filter: blur(12px);
   }
-  header .logo { font-size: 22px; }
-  header h1 { font-size: 18px; font-weight: 600; }
-  header span { color: var(--text2); font-size: 13px; margin-left: auto; }
+  header .logo { font-size: 20px; }
+  header h1 { font-size: 17px; font-weight: 700; }
+  header .header-badge {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--text2);
+    background: var(--surface2);
+    padding: 3px 8px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    white-space: nowrap;
+  }
 
+  /* ── Progress bar (below header) ── */
+  .progress-bar {
+    position: fixed;
+    top: var(--header-h);
+    left: 0; right: 0;
+    height: 3px;
+    background: var(--border);
+    z-index: 99;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transition: width 0.4s ease;
+  }
+
+  /* ── Layout ── */
   .layout {
-    display: grid;
-    grid-template-columns: 260px 1fr;
-    min-height: calc(100vh - 61px);
+    display: flex;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding-top: calc(var(--header-h) + 3px);
   }
 
-  /* Sidebar */
+  /* ── Desktop sidebar ── */
   .sidebar {
+    width: 240px;
+    flex-shrink: 0;
     background: var(--surface);
     border-right: 1px solid var(--border);
     padding: 20px 0;
     position: sticky;
-    top: 0;
-    height: calc(100vh - 61px);
+    top: calc(var(--header-h) + 3px);
+    height: calc(100vh - var(--header-h) - 3px);
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
   }
   .sidebar-title {
-    padding: 0 20px 12px;
-    font-size: 11px;
-    font-weight: 600;
+    padding: 0 18px 12px;
+    font-size: 10px;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
     color: var(--text2);
   }
   .step-item {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 10px 20px;
+    gap: 10px;
+    padding: 9px 18px;
     cursor: pointer;
     transition: background 0.15s;
     border-left: 3px solid transparent;
+    border-right: none;
   }
   .step-item:hover { background: var(--surface2); }
-  .step-item.active {
-    background: var(--surface2);
-    border-left-color: var(--accent);
-  }
+  .step-item.active { background: var(--surface2); border-left-color: var(--accent); }
   .step-icon {
-    width: 28px; height: 28px;
+    width: 26px; height: 26px;
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 12px; font-weight: 700;
+    font-size: 11px; font-weight: 700;
     background: var(--surface2);
     border: 2px solid var(--border);
     flex-shrink: 0;
     transition: all 0.2s;
   }
-  .step-item.done .step-icon {
-    background: var(--success);
-    border-color: var(--success);
-    color: #000;
-  }
-  .step-item.active .step-icon {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-  .step-item.error .step-icon {
-    border-color: var(--danger);
-    color: var(--danger);
-  }
-  .step-label { font-size: 13px; }
-  .step-sub { font-size: 11px; color: var(--text2); margin-top: 2px; }
+  .step-item.done .step-icon { background: var(--success); border-color: var(--success); color: #000; }
+  .step-item.active .step-icon { border-color: var(--accent); color: var(--accent); }
+  .step-item.error .step-icon { border-color: var(--danger); color: var(--danger); }
+  .step-label { font-size: 13px; font-weight: 500; }
+  .step-sub { font-size: 11px; color: var(--text2); margin-top: 1px; }
 
-  /* Main content */
-  .main { padding: 32px; max-width: 720px; }
+  /* ── Mobile bottom nav ── */
+  .bottom-nav {
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 100;
+    height: var(--bottom-nav-h);
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: none;
+    align-items: stretch;
+  }
+  .bottom-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    cursor: pointer;
+    padding: 6px 4px;
+    transition: background 0.15s;
+    border-top: 2px solid transparent;
+    position: relative;
+  }
+  .bottom-nav-item:active { background: var(--surface2); }
+  .bottom-nav-item.active { border-top-color: var(--accent); }
+  .bottom-nav-item.done .bnav-icon { color: var(--success); }
+  .bottom-nav-item.error .bnav-icon { color: var(--danger); }
+  .bnav-icon {
+    font-size: 11px;
+    font-weight: 700;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+  .bottom-nav-item.done .bnav-icon { background: var(--success); border-color: var(--success); color: #000; }
+  .bottom-nav-item.active .bnav-icon { border-color: var(--accent); color: var(--accent); }
+  .bottom-nav-item.error .bnav-icon { border-color: var(--danger); color: var(--danger); }
+  .bnav-label { font-size: 9px; color: var(--text2); font-weight: 500; text-align: center; line-height: 1.2; }
+  .bottom-nav-item.active .bnav-label { color: var(--accent); }
+
+  /* ── Main content ── */
+  .main {
+    flex: 1;
+    min-width: 0;
+    padding: 24px 20px;
+    max-width: 720px;
+    width: 100%;
+  }
 
   .section { display: none; }
   .section.active { display: block; }
 
-  h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
-  .subtitle { color: var(--text2); font-size: 14px; margin-bottom: 28px; }
+  h2 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .subtitle { color: var(--text2); font-size: 13px; margin-bottom: 20px; line-height: 1.5; }
 
-  /* Cards */
+  /* ── Cards ── */
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 20px;
-    margin-bottom: 16px;
-  }
-  .card-title {
-    font-size: 13px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--text2);
+    padding: 16px;
     margin-bottom: 14px;
   }
+  .card-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text2);
+    margin-bottom: 12px;
+  }
 
-  /* Status rows */
+  /* ── Status rows ── */
   .status-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 0;
+    gap: 8px;
+    padding: 9px 0;
     border-bottom: 1px solid var(--border);
   }
   .status-row:last-child { border-bottom: none; }
-  .status-label { font-size: 14px; }
-  .status-value { font-size: 13px; color: var(--text2); }
+  .status-label { font-size: 13px; flex-shrink: 0; }
+  .status-right { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .status-value { font-size: 12px; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100px; }
   .badge {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 3px 10px; border-radius: 20px;
-    font-size: 12px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 20px;
+    font-size: 11px; font-weight: 600;
+    white-space: nowrap; flex-shrink: 0;
   }
   .badge.ok { background: rgba(0,212,170,0.15); color: var(--success); }
   .badge.fail { background: rgba(255,79,79,0.15); color: var(--danger); }
   .badge.warn { background: rgba(255,181,71,0.15); color: var(--warning); }
   .badge.pending { background: var(--surface2); color: var(--text2); }
 
-  /* Forms */
-  .form-group { margin-bottom: 18px; }
+  /* ── Forms ── */
+  .form-group { margin-bottom: 14px; }
   label {
     display: block;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
-    margin-bottom: 6px;
+    margin-bottom: 5px;
     color: var(--text2);
   }
   input[type=text], input[type=password], textarea, select {
@@ -164,73 +251,86 @@
     background: var(--surface2);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 10px 14px;
+    padding: 10px 12px;
     color: var(--text);
-    font-size: 14px;
+    font-size: 15px; /* 15px prevents iOS zoom */
     outline: none;
     transition: border-color 0.15s;
     font-family: inherit;
+    -webkit-appearance: none;
+    appearance: none;
   }
-  input:focus, textarea:focus, select:focus {
-    border-color: var(--accent);
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+  select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238b90b0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
   }
-  textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
-  .hint { font-size: 12px; color: var(--text2); margin-top: 5px; }
+  textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+  .hint { font-size: 11px; color: var(--text2); margin-top: 4px; }
 
-  /* Provider cards */
+  /* ── Provider grid ── */
   .provider-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    margin-bottom: 18px;
+    gap: 8px;
+    margin-bottom: 16px;
   }
   .provider-card {
     background: var(--surface2);
     border: 2px solid var(--border);
     border-radius: 10px;
-    padding: 14px;
+    padding: 12px 10px;
     cursor: pointer;
     transition: all 0.15s;
     text-align: center;
+    -webkit-user-select: none;
+    user-select: none;
   }
+  .provider-card:active { transform: scale(0.97); }
   .provider-card:hover { border-color: var(--accent); }
   .provider-card.selected { border-color: var(--accent); background: rgba(108,99,255,0.1); }
-  .provider-card .provider-name { font-weight: 600; font-size: 14px; margin-bottom: 3px; }
-  .provider-card .provider-hint { font-size: 11px; color: var(--text2); }
+  .provider-name { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+  .provider-hint { font-size: 10px; color: var(--text2); }
 
-  /* Model select - shown per provider */
-  .model-options { display: none; }
-  .model-options.visible { display: block; }
-
-  /* Buttons */
+  /* ── Buttons ── */
   .btn {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 10px 20px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 10px 18px;
     border-radius: 8px;
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     border: none;
     transition: all 0.15s;
+    white-space: nowrap;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
   }
+  .btn:active { transform: scale(0.97); }
   .btn-primary { background: var(--accent); color: #fff; }
   .btn-primary:hover { background: #7b73ff; }
-  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
-  .btn-secondary {
-    background: var(--surface2);
-    color: var(--text);
-    border: 1px solid var(--border);
-  }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
   .btn-secondary:hover { border-color: var(--accent); }
   .btn-success { background: var(--success); color: #000; }
-  .btn-row { display: flex; gap: 10px; align-items: center; margin-top: 20px; }
+  .btn-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
 
-  /* Alert boxes */
+  /* ── Alerts ── */
   .alert {
-    padding: 12px 16px;
+    padding: 10px 14px;
     border-radius: 8px;
     font-size: 13px;
-    margin: 12px 0;
+    line-height: 1.5;
+    margin: 10px 0;
     display: none;
   }
   .alert.visible { display: block; }
@@ -238,151 +338,195 @@
   .alert.error { background: rgba(255,79,79,0.1); border: 1px solid var(--danger); color: var(--danger); }
   .alert.info { background: rgba(108,99,255,0.1); border: 1px solid var(--accent); color: #a9a3ff; }
 
-  /* Steps guide */
+  /* ── Guide steps ── */
   .guide-step {
     display: flex;
-    gap: 14px;
-    padding: 14px 0;
+    gap: 12px;
+    padding: 12px 0;
     border-bottom: 1px solid var(--border);
   }
   .guide-step:last-child { border-bottom: none; }
   .guide-num {
-    width: 26px; height: 26px;
+    width: 24px; height: 24px;
     background: var(--accent);
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 12px; font-weight: 700;
+    font-size: 11px; font-weight: 700;
     flex-shrink: 0;
-    margin-top: 2px;
+    margin-top: 1px;
   }
   .guide-text { font-size: 14px; line-height: 1.6; }
   .guide-text code {
     background: var(--surface2);
-    padding: 2px 7px;
+    padding: 1px 6px;
     border-radius: 4px;
-    font-size: 13px;
+    font-size: 12px;
     color: var(--accent2);
+    word-break: break-all;
   }
   .guide-text a { color: var(--accent2); }
 
-  /* Soul preview */
+  /* ── Soul preview ── */
   #soul-preview {
     background: var(--surface2);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 16px;
-    font-size: 13px;
+    padding: 14px;
+    font-size: 12px;
     line-height: 1.7;
     white-space: pre-wrap;
     font-family: 'SF Mono', 'Fira Code', monospace;
-    max-height: 400px;
+    max-height: 320px;
     overflow-y: auto;
     display: none;
+    -webkit-overflow-scrolling: touch;
   }
 
-  /* Final checklist */
+  /* ── Final checklist ── */
   .final-item {
-    display: flex; align-items: center; gap: 12px;
-    padding: 12px 0;
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 0;
     border-bottom: 1px solid var(--border);
     font-size: 14px;
   }
   .final-item:last-child { border-bottom: none; }
-  .check { font-size: 18px; }
+  .check { font-size: 16px; }
 
-  /* Loading spinner */
+  /* ── Spinner ── */
   .spinner {
     display: inline-block;
-    width: 16px; height: 16px;
+    width: 14px; height: 14px;
     border: 2px solid var(--border);
     border-top-color: var(--accent);
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* Progress bar */
-  .progress-bar {
-    height: 3px;
-    background: var(--border);
-    border-radius: 3px;
-    margin-bottom: 28px;
-    overflow: hidden;
+  /* ── Install card ── */
+  #install-picoclaw-section { display: none; }
+
+  /* ── Model load row ── */
+  .model-load-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 8px;
+    flex-wrap: wrap;
   }
-  .progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--accent), var(--accent2));
-    border-radius: 3px;
-    transition: width 0.4s ease;
+  .model-load-row label {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 12px; color: var(--text2); margin: 0;
+    cursor: pointer;
   }
 
+  /* ── Launch success commands ── */
+  .cmd-block {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 12px 14px;
+    text-align: left;
+    font-size: 12px;
+    margin-bottom: 14px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .cmd-block .cmd-hint { color: var(--text2); margin-bottom: 8px; font-size: 12px; }
+  .cmd-block code {
+    display: block;
+    color: var(--accent2);
+    margin-bottom: 4px;
+    word-break: break-all;
+  }
+
+  /* ── Responsive breakpoints ── */
   @media (max-width: 640px) {
-    .layout { grid-template-columns: 1fr; }
     .sidebar { display: none; }
+
+    .bottom-nav { display: flex; }
+
+    .main {
+      padding: 16px 14px;
+      padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 16px);
+    }
+
+    h2 { font-size: 18px; }
+    .subtitle { font-size: 12px; margin-bottom: 16px; }
+
+    .provider-grid { gap: 6px; }
+    .provider-card { padding: 10px 8px; }
+    .provider-name { font-size: 12px; }
+
+    .btn { font-size: 13px; padding: 9px 14px; }
+    .btn-row { gap: 6px; }
+
+    /* Stack some two-col layouts */
+    .status-value { max-width: 70px; }
+  }
+
+  @media (min-width: 641px) and (max-width: 900px) {
+    .sidebar { width: 200px; }
+    .step-sub { display: none; }
+    .main { padding: 20px 18px; }
+  }
+
+  @media (min-width: 901px) {
+    .main { padding: 28px 28px; }
+  }
+
+  /* Very small phones */
+  @media (max-width: 360px) {
     .provider-grid { grid-template-columns: 1fr; }
+    .btn { width: 100%; justify-content: center; }
+    .btn-row { flex-direction: column; align-items: stretch; }
   }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="logo">\ud83e\udd90</div>
+  <div class="logo">🦐</div>
   <h1>claw-setup</h1>
-  <span>PicoClaw Setup Wizard</span>
+  <span class="header-badge">PicoClaw Wizard</span>
 </header>
+
+<div class="progress-bar"><div class="progress-fill" id="progress" style="width:10%"></div></div>
 
 <div class="layout">
 
-  <!-- Sidebar -->
+  <!-- Desktop Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-title">Setup Steps</div>
     <div class="step-item active" id="nav-0" onclick="goTo(0)">
       <div class="step-icon" id="icon-0">1</div>
-      <div>
-        <div class="step-label">System Check</div>
-        <div class="step-sub">Verify installation</div>
-      </div>
+      <div><div class="step-label">System Check</div><div class="step-sub">Verify installation</div></div>
     </div>
     <div class="step-item" id="nav-1" onclick="goTo(1)">
       <div class="step-icon" id="icon-1">2</div>
-      <div>
-        <div class="step-label">LLM Provider</div>
-        <div class="step-sub">Connect your AI</div>
-      </div>
+      <div><div class="step-label">LLM Provider</div><div class="step-sub">Connect your AI</div></div>
     </div>
     <div class="step-item" id="nav-2" onclick="goTo(2)">
       <div class="step-icon" id="icon-2">3</div>
-      <div>
-        <div class="step-label">Telegram</div>
-        <div class="step-sub">Your chat channel</div>
-      </div>
+      <div><div class="step-label">Telegram</div><div class="step-sub">Your chat channel</div></div>
     </div>
     <div class="step-item" id="nav-3" onclick="goTo(3)">
       <div class="step-icon" id="icon-3">4</div>
-      <div>
-        <div class="step-label">Your Twin</div>
-        <div class="step-sub">Build your SOUL.md</div>
-      </div>
+      <div><div class="step-label">Your Twin</div><div class="step-sub">Build your SOUL.md</div></div>
     </div>
     <div class="step-item" id="nav-4" onclick="goTo(4)">
       <div class="step-icon" id="icon-4">5</div>
-      <div>
-        <div class="step-label">Launch</div>
-        <div class="step-sub">Go live</div>
-      </div>
+      <div><div class="step-label">Launch</div><div class="step-sub">Go live</div></div>
     </div>
   </aside>
 
-  <!-- Main -->
+  <!-- Main Content -->
   <main class="main">
-
-    <div class="progress-bar"><div class="progress-fill" id="progress" style="width:10%"></div></div>
 
     <!-- STEP 0: System Check -->
     <div class="section active" id="step-0">
       <h2>System Check</h2>
       <p class="subtitle">Let's verify everything is in place before we configure anything.</p>
-
       <div class="card">
         <div class="card-title">System Status</div>
         <div id="system-rows">
@@ -392,41 +536,31 @@
           </div>
         </div>
       </div>
-
       <div id="sys-alert" class="alert"></div>
-
-<div id="install-picoclaw-section" style="display:none">
-  <div class="card" style="border-color: var(--warning)">
-    <div class="card-title">PicoClaw Not Found</div>
-    <p style="font-size:14px; color:var(--text2); margin-bottom:16px">
-      Click below to automatically download and install PicoClaw for your device.
-    </p>
-    <div id="install-alert" class="alert"></div>
-    <div class="btn-row">
-      <button class="btn btn-primary" id="btn-install-picoclaw" onclick="installPicoclaw()">
-        ⬇ Install PicoClaw
-      </button>
-    </div>
-  </div>
-</div>
-
+      <div id="install-picoclaw-section">
+        <div class="card" style="border-color: var(--warning)">
+          <div class="card-title">PicoClaw Not Found</div>
+          <p style="font-size:13px; color:var(--text2); margin-bottom:14px">Click below to automatically download and install PicoClaw for your device.</p>
+          <div id="install-alert" class="alert"></div>
+          <div class="btn-row">
+            <button class="btn btn-primary" id="btn-install-picoclaw" onclick="installPicoclaw()">⬇ Install PicoClaw</button>
+          </div>
+        </div>
+      </div>
       <div class="btn-row">
         <button class="btn btn-secondary" onclick="runSystemCheck()">↻ Refresh</button>
-        <button class="btn btn-primary" id="btn-sys-next" disabled onclick="goTo(1)">
-          Continue →
-        </button>
+        <button class="btn btn-primary" id="btn-sys-next" disabled onclick="goTo(1)">Continue →</button>
       </div>
     </div>
 
     <!-- STEP 1: LLM Provider -->
     <div class="section" id="step-1">
       <h2>LLM Provider</h2>
-      <p class="subtitle">Choose which AI brain powers your twin. OpenRouter is recommended \u2014 one key, all models.</p>
-
+      <p class="subtitle">Choose which AI brain powers your twin. OpenRouter is recommended — one key, all models.</p>
       <div class="provider-grid">
         <div class="provider-card selected" onclick="selectProvider('openrouter')" id="pcard-openrouter">
           <div class="provider-name">OpenRouter</div>
-          <div class="provider-hint">Recommended \u00b7 All models</div>
+          <div class="provider-hint">Recommended · All models</div>
         </div>
         <div class="provider-card" onclick="selectProvider('anthropic')" id="pcard-anthropic">
           <div class="provider-name">Anthropic</div>
@@ -434,84 +568,60 @@
         </div>
         <div class="provider-card" onclick="selectProvider('gemini')" id="pcard-gemini">
           <div class="provider-name">Gemini</div>
-          <div class="provider-hint">Google \u00b7 Free tier available</div>
+          <div class="provider-hint">Google · Free tier</div>
         </div>
         <div class="provider-card" onclick="selectProvider('groq')" id="pcard-groq">
           <div class="provider-name">Groq</div>
-          <div class="provider-hint">Very fast \u00b7 Free tier</div>
+          <div class="provider-hint">Very fast · Free tier</div>
         </div>
       </div>
-
       <div class="card">
-  <div class="form-group">
-    <label>API Key</label>
-    <input type="password" id="llm-key" placeholder="Paste your API key here" 
-           oninput="onKeyInput()" />
-    <div class="hint" id="llm-key-hint">
-      Get your free key at <a href="https://openrouter.ai/keys" target="_blank" 
-      style="color:var(--accent2)">openrouter.ai/keys</a>
-    </div>
-  </div>
-  <div class="form-group" id="model-group">
-    <label>Model</label>
-    <select id="llm-model">
-      <option value="">— paste your key and click Load Models —</option>
-    </select>
-    <div style="display:flex; gap:8px; margin-top:8px">
-      <button class="btn btn-secondary" id="btn-load-models" onclick="loadModels()" disabled>
-        ↻ Load Models
-      </button>
-      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);margin:0">
-        <input type="checkbox" id="free-only" onchange="filterModels()" checked />
-        Free only
-      </label>
-    </div>
-  </div>
-
-  <div id="llm-alert" class="alert"></div>
-
-  <div class="btn-row">
-    <button class="btn btn-primary" id="btn-validate-llm" onclick="validateLLM()">
-      Validate Key
-    </button>
-    <button class="btn btn-primary" id="btn-llm-next" disabled onclick="goTo(2)">
-      Continue →
-    </button>
-  </div>
-</div>
+        <div class="form-group">
+          <label>API Key</label>
+          <input type="password" id="llm-key" placeholder="Paste your API key here" autocomplete="off" oninput="onKeyInput()" />
+          <div class="hint" id="llm-key-hint">Get your free key at <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--accent2)">openrouter.ai/keys</a></div>
+        </div>
+        <div class="form-group" id="model-group">
+          <label>Model</label>
+          <select id="llm-model">
+            <option value="">— paste your key and click Load Models —</option>
+          </select>
+          <div class="model-load-row">
+            <button class="btn btn-secondary" id="btn-load-models" onclick="loadModels()" disabled>↻ Load Models</button>
+            <label><input type="checkbox" id="free-only" onchange="filterModels()" checked /> Free only</label>
+          </div>
+        </div>
+        <div id="llm-alert" class="alert"></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="btn-validate-llm" onclick="validateLLM()">Validate Key</button>
+          <button class="btn btn-primary" id="btn-llm-next" disabled onclick="goTo(2)">Continue →</button>
+        </div>
+      </div>
     </div>
 
     <!-- STEP 2: Telegram -->
     <div class="section" id="step-2">
       <h2>Telegram Setup</h2>
       <p class="subtitle">Create a Telegram bot and connect it to your twin. Takes about 3 minutes.</p>
-
       <div class="card">
         <div class="card-title">Step-by-Step Guide</div>
         <div class="guide-step">
           <div class="guide-num">1</div>
-          <div class="guide-text">
-            Open Telegram and search for <code>@BotFather</code> \u2014 it's the official bot that creates other bots.
-          </div>
+          <div class="guide-text">Open Telegram and search for <code>@BotFather</code> — the official bot that creates other bots.</div>
         </div>
         <div class="guide-step">
           <div class="guide-num">2</div>
-          <div class="guide-text">
-            Send the message <code>/newbot</code> and follow BotFather's instructions. Give your bot any name you like (e.g. "My Twin Bot").
-          </div>
+          <div class="guide-text">Send <code>/newbot</code> and follow BotFather's instructions. Give your bot any name you like.</div>
         </div>
         <div class="guide-step">
           <div class="guide-num">3</div>
-          <div class="guide-text">
-            BotFather will give you a token that looks like <code>123456789:ABCdef...</code> \u2014 paste it below.
-          </div>
+          <div class="guide-text">BotFather will give you a token like <code>123456789:ABCdef...</code> — paste it below.</div>
         </div>
       </div>
-
       <div class="card">
         <div class="form-group">
           <label>Bot Token</label>
-          <input type="text" id="tg-token" placeholder="123456789:ABCdefGhIjKlmNoPQRsTuVwXyZ" />
+          <input type="text" id="tg-token" placeholder="123456789:ABCdefGhIjKlmNoPQRsTuVwXyZ" autocomplete="off" autocorrect="off" />
         </div>
         <div id="tg-alert" class="alert"></div>
         <div class="btn-row">
@@ -524,19 +634,15 @@
           <div class="card-title">Your Telegram User ID</div>
           <div class="guide-step">
             <div class="guide-num">4</div>
-            <div class="guide-text">
-              Search for <code>@userinfobot</code> on Telegram and send it any message. It will reply with your User ID number.
-            </div>
+            <div class="guide-text">Search for <code>@userinfobot</code> on Telegram and send it any message. It will reply with your User ID.</div>
           </div>
           <div class="guide-step">
             <div class="guide-num">5</div>
-            <div class="guide-text">
-              Also open a chat with your new bot (search for its username) and send it <code>/start</code> \u2014 this activates it.
-            </div>
+            <div class="guide-text">Open a chat with your new bot and send it <code>/start</code> to activate it.</div>
           </div>
-          <div class="form-group" style="margin-top:16px">
+          <div class="form-group" style="margin-top:14px">
             <label>Your Telegram User ID</label>
-            <input type="text" id="tg-userid" placeholder="123456789" />
+            <input type="text" id="tg-userid" placeholder="123456789" inputmode="numeric" />
           </div>
           <div id="tg-userid-alert" class="alert"></div>
           <div class="btn-row">
@@ -548,15 +654,11 @@
       <div id="tg-ping-section" style="display:none">
         <div class="card">
           <div class="card-title">Ping Test</div>
-          <p style="font-size:14px; color:var(--text2); margin-bottom:16px">
-            Let's send a real message to verify everything works end-to-end.
-          </p>
+          <p style="font-size:13px; color:var(--text2); margin-bottom:14px">Let's send a real message to verify everything works end-to-end.</p>
           <div id="tg-ping-alert" class="alert"></div>
           <div class="btn-row">
-            <button class="btn btn-primary" onclick="sendPing()">\ud83c\udfd3 Send Ping to My Telegram</button>
-            <button class="btn btn-primary" id="btn-tg-next" disabled onclick="goTo(3)">
-              Continue \u2192
-            </button>
+            <button class="btn btn-primary" onclick="sendPing()">🏓 Send Ping</button>
+            <button class="btn btn-primary" id="btn-tg-next" disabled onclick="goTo(3)">Continue →</button>
           </div>
         </div>
       </div>
@@ -565,59 +667,56 @@
     <!-- STEP 3: Soul -->
     <div class="section" id="step-3">
       <h2>Build Your Twin's Soul</h2>
-      <p class="subtitle">Answer these questions honestly. The more specific you are, the more it sounds like <em>you</em>.</p>
-
+      <p class="subtitle">Answer honestly — the more specific you are, the more it sounds like <em>you</em>.</p>
       <div class="card">
         <div class="form-group">
           <label>Your Name</label>
-          <input type="text" id="soul-username" placeholder="e.g. Alex" />
+          <input type="text" id="soul-username" placeholder="e.g. Alex" autocomplete="given-name" />
         </div>
         <div class="form-group">
           <label>What should your twin be called?</label>
-          <input type="text" id="soul-name" placeholder="e.g. Alex's Twin, Dev Assistant, The Real Alex..." />
+          <input type="text" id="soul-name" placeholder="e.g. Alex's Twin, Dev Assistant..." />
           <div class="hint">This is your twin's identity name</div>
         </div>
         <div class="form-group">
-          <label>What do you do? (your role / profession)</label>
-          <input type="text" id="soul-role" placeholder="e.g. Software developer, founder, freelancer building web apps" />
+          <label>What do you do? (role / profession)</label>
+          <input type="text" id="soul-role" placeholder="e.g. Software developer, founder, freelancer..." />
         </div>
         <div class="form-group">
           <label>What are you genuinely expert in?</label>
-          <textarea id="soul-expertise" placeholder="e.g. Python, FastAPI, React, AWS. I've built SaaS products, know startup processes, understand product development end to end..."></textarea>
+          <textarea id="soul-expertise" placeholder="e.g. Python, FastAPI, React, AWS. I've built SaaS products..."></textarea>
         </div>
         <div class="form-group">
           <label>How do you communicate naturally?</label>
-          <textarea id="soul-style" placeholder="e.g. Direct and brief. I don't pad things out. I give the answer first then explain if needed. I use plain language not corporate speak..."></textarea>
+          <textarea id="soul-style" placeholder="e.g. Direct and brief. I give the answer first then explain if needed..."></textarea>
         </div>
         <div class="form-group">
           <label>What do you care most about getting done?</label>
-          <textarea id="soul-goals" placeholder="e.g. Shipping things fast, not over-engineering, making money, building things that actually help people..."></textarea>
+          <textarea id="soul-goals" placeholder="e.g. Shipping things fast, not over-engineering, making money..."></textarea>
         </div>
         <div class="form-group">
           <label>What annoys you / what would you never do?</label>
-          <textarea id="soul-dislikes" placeholder="e.g. Wasting time on meetings that could be emails, over-complicating simple things, saying yes to everything..."></textarea>
+          <textarea id="soul-dislikes" placeholder="e.g. Wasting time on meetings, over-complicating simple things..."></textarea>
         </div>
         <div class="form-group">
           <label>How do you make decisions when things are unclear?</label>
-          <textarea id="soul-decisions" placeholder="e.g. I default to the simpler option. I'd rather ship something imperfect than wait for perfect. If in doubt I ask one clarifying question then act..."></textarea>
+          <textarea id="soul-decisions" placeholder="e.g. I default to the simpler option. Ship imperfect over waiting for perfect..."></textarea>
         </div>
-
         <div id="soul-alert" class="alert"></div>
-
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="generateSoul()">\u2728 Generate My SOUL.md</button>
+          <button class="btn btn-primary" onclick="generateSoul()">✨ Generate My SOUL.md</button>
         </div>
       </div>
 
       <div id="soul-result" style="display:none">
         <div class="card">
-          <div class="card-title">Preview \u2014 Your SOUL.md</div>
+          <div class="card-title">Preview — Your SOUL.md</div>
           <pre id="soul-preview"></pre>
           <div id="soul-save-alert" class="alert"></div>
           <div class="btn-row">
-            <button class="btn btn-secondary" onclick="generateSoul()">\u21bb Regenerate</button>
-            <button class="btn btn-primary" onclick="saveSoul()">Save SOUL.md to Pi</button>
-            <button class="btn btn-primary" id="btn-soul-next" disabled onclick="goTo(4)">Continue \u2192</button>
+            <button class="btn btn-secondary" onclick="generateSoul()">↻ Regenerate</button>
+            <button class="btn btn-primary" onclick="saveSoul()">Save to Pi</button>
+            <button class="btn btn-primary" id="btn-soul-next" disabled onclick="goTo(4)">Continue →</button>
           </div>
         </div>
       </div>
@@ -625,41 +724,34 @@
 
     <!-- STEP 4: Launch -->
     <div class="section" id="step-4">
-      <h2>Launch Your Twin \ud83d\ude80</h2>
+      <h2>Launch Your Twin 🚀</h2>
       <p class="subtitle">Everything's configured. Let's get PicoClaw running permanently on your Pi.</p>
-
       <div class="card" id="final-checklist">
         <div class="card-title">Final Checklist</div>
         <div id="checklist-rows">
           <div class="status-row"><span>Loading...</span></div>
         </div>
       </div>
-
       <div class="card">
         <div class="card-title">Install as System Service</div>
-        <p style="font-size:14px; color:var(--text2); margin-bottom:16px">
-          This sets PicoClaw to start automatically on boot and restart if it crashes.
-          Your twin will always be available.
-        </p>
+        <p style="font-size:13px; color:var(--text2); margin-bottom:14px">This sets PicoClaw to start automatically on boot and restart if it crashes.</p>
         <div id="service-alert" class="alert"></div>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="installService()">\u26a1 Install & Start Service</button>
+          <button class="btn btn-primary" onclick="installService()">⚡ Install &amp; Start Service</button>
         </div>
       </div>
 
       <div id="launch-success" style="display:none">
         <div class="card" style="border-color: var(--success)">
-          <div style="text-align:center; padding: 20px 0">
-            <div style="font-size:48px; margin-bottom:12px">\ud83c\udf89</div>
-            <div style="font-size:20px; font-weight:700; margin-bottom:8px">Your twin is live!</div>
-            <div style="color:var(--text2); font-size:14px; margin-bottom:20px">
-              Open Telegram and send your bot a message. It will respond as you.
-            </div>
-            <div style="background:var(--surface2); border-radius:8px; padding:14px; text-align:left; font-size:13px; margin-bottom:16px">
-              <div style="color:var(--text2); margin-bottom:8px">Useful commands on your Pi:</div>
-              <code style="display:block; color:var(--accent2); margin-bottom:4px">systemctl --user status picoclaw</code>
-              <code style="display:block; color:var(--accent2); margin-bottom:4px">systemctl --user restart picoclaw</code>
-              <code style="display:block; color:var(--accent2)">picoclaw agent -m "hello"</code>
+          <div style="text-align:center; padding: 16px 0">
+            <div style="font-size:44px; margin-bottom:10px">🎉</div>
+            <div style="font-size:18px; font-weight:700; margin-bottom:6px">Your twin is live!</div>
+            <div style="color:var(--text2); font-size:13px; margin-bottom:16px">Open Telegram and send your bot a message. It will respond as you.</div>
+            <div class="cmd-block">
+              <div class="cmd-hint">Useful commands on your Pi:</div>
+              <code>systemctl --user status picoclaw</code>
+              <code>systemctl --user restart picoclaw</code>
+              <code>picoclaw agent -m "hello"</code>
             </div>
           </div>
         </div>
@@ -668,6 +760,30 @@
 
   </main>
 </div>
+
+<!-- Mobile Bottom Nav -->
+<nav class="bottom-nav" id="bottom-nav">
+  <div class="bottom-nav-item active" id="bnav-0" onclick="goTo(0)">
+    <div class="bnav-icon" id="bicon-0">1</div>
+    <div class="bnav-label">System</div>
+  </div>
+  <div class="bottom-nav-item" id="bnav-1" onclick="goTo(1)">
+    <div class="bnav-icon" id="bicon-1">2</div>
+    <div class="bnav-label">LLM</div>
+  </div>
+  <div class="bottom-nav-item" id="bnav-2" onclick="goTo(2)">
+    <div class="bnav-icon" id="bicon-2">3</div>
+    <div class="bnav-label">Telegram</div>
+  </div>
+  <div class="bottom-nav-item" id="bnav-3" onclick="goTo(3)">
+    <div class="bnav-icon" id="bicon-3">4</div>
+    <div class="bnav-label">Soul</div>
+  </div>
+  <div class="bottom-nav-item" id="bnav-4" onclick="goTo(4)">
+    <div class="bnav-icon" id="bicon-4">5</div>
+    <div class="bnav-label">Launch</div>
+  </div>
+</nav>
 
 <script>
 let currentStep = 0;
@@ -855,7 +971,7 @@ console.log('key:', key);
   btn.disabled = false;
 
   if (data.ok) {
-    showAlert('llm-alert', 'success', '\u2713 ' + data.message + ` \u2014 using ${model}`);
+    showAlert('llm-alert', 'success', '\u2713 ' + data.message + ` - using ${model}`);
     document.getElementById('btn-llm-next').disabled = false;
     markDone(1);
     state.llm = true;
@@ -912,13 +1028,13 @@ async function sendPing() {
 
   if (data.ok) {
     showAlert('tg-ping-alert', 'success',
-      '\u2713 Ping sent! Check your Telegram \u2014 you should see a message from your bot. If you got it, continue.');
+      '\u2713 Ping sent! Check your Telegram - you should see a message from your bot. If you got it, continue.');
     document.getElementById('btn-tg-next').disabled = false;
     markDone(2);
     state.telegram = true;
   } else {
     showAlert('tg-ping-alert', 'error', '\u2717 ' + data.message +
-      ' \u2014 Make sure you sent /start to your bot in Telegram first.');
+      ' - Make sure you sent /start to your bot in Telegram first.');
   }
 }
 
@@ -928,7 +1044,7 @@ async function generateSoul() {
   const fields = ['username', 'name', 'role', 'expertise', 'style', 'goals', 'dislikes', 'decisions'];
   for (const f of fields) {
     if (!document.getElementById(`soul-${f}`).value.trim()) {
-      showAlert('soul-alert', 'error', `Please fill in all fields \u2014 "${f}" is empty`);
+      showAlert('soul-alert', 'error', `Please fill in all fields - "${f}" is empty`);
       return;
     }
   }
