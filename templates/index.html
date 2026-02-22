@@ -789,17 +789,8 @@
 let currentStep = 0;
 let selectedProvider = 'openrouter';
 let systemData = {};
-let state = {
-  system: false,
-  llm: false,
-  telegram: false,
-  soul: false,
-  service: false
-};
-
+let state = { system: false, llm: false, telegram: false, soul: false, service: false };
 const progress = [10, 30, 55, 75, 95];
-
-// \u2500\u2500 Navigation \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
 const providerModels = {
   openrouter: {
@@ -813,34 +804,33 @@ const providerModels = {
   },
   anthropic: {
     hint: 'Get your key at <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent2)">console.anthropic.com</a>',
-    models: [
-      ['claude-sonnet-4-6', 'Claude Sonnet 4.6'],
-      ['claude-haiku-4-5-20251001', 'Claude Haiku 4.5'],
-    ]
+    models: [['claude-sonnet-4-6', 'Claude Sonnet 4.6'], ['claude-haiku-4-5-20251001', 'Claude Haiku 4.5']]
   },
   gemini: {
     hint: 'Get your free key at <a href="https://aistudio.google.com/api-keys" target="_blank" style="color:var(--accent2)">aistudio.google.com</a>',
-    models: [
-      ['gemini-1.5-flash', 'Gemini 1.5 Flash (Free tier)'],
-      ['gemini-1.5-pro', 'Gemini 1.5 Pro'],
-    ]
+    models: [['gemini-1.5-flash', 'Gemini 1.5 Flash (Free tier)'], ['gemini-1.5-pro', 'Gemini 1.5 Pro']]
   },
   groq: {
     hint: 'Get your free key at <a href="https://console.groq.com" target="_blank" style="color:var(--accent2)">console.groq.com</a>',
-    models: [
-      ['llama-3.1-8b-instant', 'Llama 3.1 8B (Fast + Free)'],
-      ['mixtral-8x7b-32768', 'Mixtral 8x7B'],
-    ]
+    models: [['llama-3.1-8b-instant', 'Llama 3.1 8B (Fast + Free)'], ['mixtral-8x7b-32768', 'Mixtral 8x7B']]
   }
 };
 
 function goTo(n) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.step-item').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.bottom-nav-item').forEach(s => s.classList.remove('active'));
+
   document.getElementById(`step-${n}`).classList.add('active');
   document.getElementById(`nav-${n}`).classList.add('active');
+  document.getElementById(`bnav-${n}`).classList.add('active');
   document.getElementById('progress').style.width = progress[n] + '%';
   currentStep = n;
+
+  // Scroll to top of main
+  document.querySelector('.main').scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
   if (n === 0) runSystemCheck();
   if (n === 1) populateLLM();
   if (n === 2) populateTelegram();
@@ -850,14 +840,16 @@ function goTo(n) {
 
 function markDone(n) {
   const icon = document.getElementById(`icon-${n}`);
-  const nav = document.getElementById(`nav-${n}`);
-  icon.textContent = '\u2713';
-  nav.classList.add('done');
-  nav.classList.remove('active');
+  const bicon = document.getElementById(`bicon-${n}`);
+  icon.textContent = '✓';
+  bicon.textContent = '✓';
+  document.getElementById(`nav-${n}`).classList.add('done');
+  document.getElementById(`bnav-${n}`).classList.add('done');
 }
 
 function markError(n) {
   document.getElementById(`nav-${n}`).classList.add('error');
+  document.getElementById(`bnav-${n}`).classList.add('error');
 }
 
 function showAlert(id, type, msg) {
@@ -865,13 +857,9 @@ function showAlert(id, type, msg) {
   el.className = `alert ${type} visible`;
   el.textContent = msg;
 }
+function hideAlert(id) { document.getElementById(id).className = 'alert'; }
 
-function hideAlert(id) {
-  document.getElementById(id).className = 'alert';
-}
-
-// \u2500\u2500 Step 0: System Check \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-
+// ── Step 0: System Check ──────────────────────────────────────────
 async function runSystemCheck() {
   document.getElementById('system-rows').innerHTML = `
     <div class="status-row">
@@ -896,18 +884,18 @@ async function runSystemCheck() {
   document.getElementById('system-rows').innerHTML = rows.map(([label, ok, val]) => `
     <div class="status-row">
       <span class="status-label">${label}</span>
-      <div style="display:flex;align-items:center;gap:8px">
-        <span class="status-value">${val}</span>
-        <span class="badge ${ok ? 'ok' : label === 'LLM Provider' || label === 'Telegram' || label === 'SOUL.md' || label === 'Service' ? 'warn' : 'fail'}">
-          ${ok ? '\u2713 OK' : '\u25cb Pending'}
+      <div class="status-right">
+        <span class="status-value" title="${val}">${val}</span>
+        <span class="badge ${ok ? 'ok' : ['LLM Provider','Telegram','SOUL.md','Service'].includes(label) ? 'warn' : 'fail'}">
+          ${ok ? '✓ OK' : '○ Pending'}
         </span>
       </div>
     </div>`).join('');
 
   if (!data.picoclaw_installed) {
     showAlert('sys-alert', 'error', 'PicoClaw not found on this device.');
-  document.getElementById('install-picoclaw-section').style.display = 'block';
-  markError(0);
+    document.getElementById('install-picoclaw-section').style.display = 'block';
+    markError(0);
   } else {
     document.getElementById('install-picoclaw-section').style.display = 'none';
     hideAlert('sys-alert');
@@ -921,20 +909,17 @@ async function runSystemCheck() {
   }
 }
 
-
-// \u2500\u2500 Step 1: LLM \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-
+// ── Step 1: LLM ──────────────────────────────────────────────────
 function selectProvider(p) {
   selectedProvider = p;
   document.querySelectorAll('.provider-card').forEach(c => c.classList.remove('selected'));
   document.getElementById(`pcard-${p}`).classList.add('selected');
   const info = providerModels[p];
   document.getElementById('llm-key-hint').innerHTML = info.hint;
-  // only show load models for openrouter
-  document.getElementById('btn-load-models').style.display = p === 'openrouter' ? 'inline-flex' : 'none';
-  document.getElementById('free-only').parentElement.style.display = p === 'openrouter' ? 'flex' : 'none';
-  // reset model dropdown to static list for non-openrouter
-  if (p !== 'openrouter') {
+  const isOR = p === 'openrouter';
+  document.getElementById('btn-load-models').style.display = isOR ? 'inline-flex' : 'none';
+  document.getElementById('free-only').parentElement.style.display = isOR ? 'flex' : 'none';
+  if (!isOR) {
     document.getElementById('llm-model').innerHTML = info.models
       .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
   }
@@ -945,14 +930,6 @@ function selectProvider(p) {
 async function validateLLM() {
   const key = document.getElementById('llm-key').value.trim();
   const model = document.getElementById('llm-model').value;
-
-console.log('key:', key);
-  console.log('model:', model);
-  console.log('selectedProvider:', selectedProvider);
-  console.log('key empty?', key === '');
-  console.log('model empty?', model === '');
-  console.log('provider empty?', selectedProvider === '');
-
   if (!key) { showAlert('llm-alert', 'error', 'Please enter your API key'); return; }
 
   const btn = document.getElementById('btn-validate-llm');
@@ -971,48 +948,37 @@ console.log('key:', key);
   btn.disabled = false;
 
   if (data.ok) {
-    showAlert('llm-alert', 'success', '\u2713 ' + data.message + ` - using ${model}`);
+    showAlert('llm-alert', 'success', '✓ ' + data.message + ` - using ${model}`);
     document.getElementById('btn-llm-next').disabled = false;
-    markDone(1);
-    state.llm = true;
+    markDone(1); state.llm = true;
   } else {
-    showAlert('llm-alert', 'error', '\u2717 ' + data.message);
+    showAlert('llm-alert', 'error', '✗ ' + data.message);
     markError(1);
   }
 }
 
-// \u2500\u2500 Step 2: Telegram \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-
+// ── Step 2: Telegram ─────────────────────────────────────────────
 async function validateTelegram() {
   const token = document.getElementById('tg-token').value.trim();
   if (!token) { showAlert('tg-alert', 'error', 'Please enter your bot token'); return; }
-
-  const fd = new FormData();
-  fd.append('token', token);
+  const fd = new FormData(); fd.append('token', token);
   showAlert('tg-alert', 'info', 'Validating token...');
-
   const r = await fetch('/api/validate-telegram', { method: 'POST', body: fd });
   const data = await r.json();
-
   if (data.ok) {
-    showAlert('tg-alert', 'success', '\u2713 ' + data.message);
+    showAlert('tg-alert', 'success', '✓ ' + data.message);
     document.getElementById('tg-userid-section').style.display = 'block';
-  } else {
-    showAlert('tg-alert', 'error', '\u2717 ' + data.message);
-  }
+  } else { showAlert('tg-alert', 'error', '✗ ' + data.message); }
 }
 
 async function saveTelegramUser() {
   const uid = document.getElementById('tg-userid').value.trim();
   if (!uid) { showAlert('tg-userid-alert', 'error', 'Please enter your User ID'); return; }
-
-  const fd = new FormData();
-  fd.append('user_id', uid);
+  const fd = new FormData(); fd.append('user_id', uid);
   const r = await fetch('/api/save-telegram-user', { method: 'POST', body: fd });
   const data = await r.json();
-
   if (data.ok) {
-    showAlert('tg-userid-alert', 'success', '\u2713 User ID saved');
+    showAlert('tg-userid-alert', 'success', '✓ User ID saved');
     document.getElementById('tg-ping-section').style.display = 'block';
   }
 }
@@ -1020,44 +986,32 @@ async function saveTelegramUser() {
 async function sendPing() {
   const uid = document.getElementById('tg-userid').value.trim();
   showAlert('tg-ping-alert', 'info', 'Sending ping...');
-
-  const fd = new FormData();
-  fd.append('chat_id', uid);
+  const fd = new FormData(); fd.append('chat_id', uid);
   const r = await fetch('/api/ping-telegram', { method: 'POST', body: fd });
   const data = await r.json();
-
   if (data.ok) {
-    showAlert('tg-ping-alert', 'success',
-      '\u2713 Ping sent! Check your Telegram - you should see a message from your bot. If you got it, continue.');
+    showAlert('tg-ping-alert', 'success', '✓ Ping sent! Check your Telegram — if you got it, continue.');
     document.getElementById('btn-tg-next').disabled = false;
-    markDone(2);
-    state.telegram = true;
+    markDone(2); state.telegram = true;
   } else {
-    showAlert('tg-ping-alert', 'error', '\u2717 ' + data.message +
-      ' - Make sure you sent /start to your bot in Telegram first.');
+    showAlert('tg-ping-alert', 'error', '✗ ' + data.message + ' — Make sure you sent /start to your bot first.');
   }
 }
 
-// \u2500\u2500 Step 3: Soul \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-
+// ── Step 3: Soul ─────────────────────────────────────────────────
 async function generateSoul() {
   const fields = ['username', 'name', 'role', 'expertise', 'style', 'goals', 'dislikes', 'decisions'];
   for (const f of fields) {
     if (!document.getElementById(`soul-${f}`).value.trim()) {
-      showAlert('soul-alert', 'error', `Please fill in all fields - "${f}" is empty`);
+      showAlert('soul-alert', 'error', `Please fill in all fields — "${f}" is empty`);
       return;
     }
   }
-
   showAlert('soul-alert', 'info', 'Generating your SOUL.md...');
-
   const fd = new FormData();
-  fields.forEach(f => fd.append(f === 'username' ? 'user_name' : f,
-    document.getElementById(`soul-${f}`).value.trim()));
-
+  fields.forEach(f => fd.append(f === 'username' ? 'user_name' : f, document.getElementById(`soul-${f}`).value.trim()));
   const r = await fetch('/api/generate-soul', { method: 'POST', body: fd });
   const data = await r.json();
-
   hideAlert('soul-alert');
   document.getElementById('soul-result').style.display = 'block';
   const preview = document.getElementById('soul-preview');
@@ -1069,28 +1023,20 @@ async function generateSoul() {
 async function saveSoul() {
   const soul = document.getElementById('soul-preview').dataset.soul;
   if (!soul) return;
-
-  const fd = new FormData();
-  fd.append('soul_content', soul);
+  const fd = new FormData(); fd.append('soul_content', soul);
   const r = await fetch('/api/save-soul', { method: 'POST', body: fd });
   const data = await r.json();
-
   if (data.ok) {
-    showAlert('soul-save-alert', 'success', '\u2713 SOUL.md saved to your Pi at ' + data.message.split('to ')[1]);
+    showAlert('soul-save-alert', 'success', '✓ SOUL.md saved to your Pi at ' + data.message.split('to ')[1]);
     document.getElementById('btn-soul-next').disabled = false;
-    markDone(3);
-    state.soul = true;
-  } else {
-    showAlert('soul-save-alert', 'error', '\u2717 ' + data.message);
-  }
+    markDone(3); state.soul = true;
+  } else { showAlert('soul-save-alert', 'error', '✗ ' + data.message); }
 }
 
-// \u2500\u2500 Step 4: Launch \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-
+// ── Step 4: Launch ───────────────────────────────────────────────
 async function loadFinalChecklist() {
   const r = await fetch('/api/system-check');
   const data = await r.json();
-
   const items = [
     ['PicoClaw installed', data.picoclaw_installed],
     ['LLM provider configured', data.has_provider],
@@ -1098,10 +1044,9 @@ async function loadFinalChecklist() {
     ['SOUL.md created', data.has_soul],
     ['Service running', data.service_status === 'active'],
   ];
-
   document.getElementById('checklist-rows').innerHTML = items.map(([label, ok]) => `
     <div class="final-item">
-      <span class="check">${ok ? '\u2705' : '\u2b55'}</span>
+      <span class="check">${ok ? '✅' : '⭕'}</span>
       <span>${label}</span>
     </div>`).join('');
 }
@@ -1110,25 +1055,18 @@ async function installService() {
   showAlert('service-alert', 'info', 'Installing systemd service...');
   const r = await fetch('/api/install-service', { method: 'POST' });
   const data = await r.json();
-
   if (data.ok) {
-    showAlert('service-alert', 'success', '\u2713 ' + data.message);
+    showAlert('service-alert', 'success', '✓ ' + data.message);
     document.getElementById('launch-success').style.display = 'block';
     document.getElementById('progress').style.width = '100%';
-    markDone(4);
-    state.service = true;
+    markDone(4); state.service = true;
     loadFinalChecklist();
-  } else {
-    showAlert('service-alert', 'error', '\u2717 ' + data.message);
-  }
+  } else { showAlert('service-alert', 'error', '✗ ' + data.message); }
 }
 
 function populateLLM() {
-  if (systemData.active_provider) {
-    selectProvider(systemData.active_provider);
-  }
+  if (systemData.active_provider) selectProvider(systemData.active_provider);
   if (systemData.active_model) {
-    // try to select existing model in dropdown, else add it as option
     const sel = document.getElementById('llm-model');
     let found = false;
     for (const opt of sel.options) {
@@ -1164,7 +1102,7 @@ function populateTelegram() {
 
 function populateSoul() {
   if (!systemData.has_soul) return;
-  showAlert('soul-alert', 'success', '✓ SOUL.md already exists on this Pi — fill the form and regenerate to update it.');
+  showAlert('soul-alert', 'success', '✓ SOUL.md already exists — fill the form and regenerate to update it.');
 }
 
 async function installPicoclaw() {
@@ -1172,10 +1110,8 @@ async function installPicoclaw() {
   btn.innerHTML = '<div class="spinner"></div> Installing...';
   btn.disabled = true;
   showAlert('install-alert', 'info', 'Downloading PicoClaw for your device...');
-
   const r = await fetch('/api/install-picoclaw', { method: 'POST' });
   const data = await r.json();
-
   if (data.ok) {
     showAlert('install-alert', 'success', '✓ ' + data.message);
     document.getElementById('install-picoclaw-section').style.display = 'none';
@@ -1188,52 +1124,31 @@ async function installPicoclaw() {
 }
 
 let allModels = [];
-
 function onKeyInput() {
-  const key = document.getElementById('llm-key').value.trim();
-  document.getElementById('btn-load-models').disabled = key.length < 10;
+  document.getElementById('btn-load-models').disabled = document.getElementById('llm-key').value.trim().length < 10;
 }
-
 async function loadModels() {
   const key = document.getElementById('llm-key').value.trim();
   const btn = document.getElementById('btn-load-models');
   btn.innerHTML = '<div class="spinner"></div>';
   btn.disabled = true;
-
-  const fd = new FormData();
-  fd.append('provider', selectedProvider);
-  fd.append('api_key', key);
-
+  const fd = new FormData(); fd.append('provider', selectedProvider); fd.append('api_key', key);
   const r = await fetch('/api/models', { method: 'POST', body: fd });
   const data = await r.json();
-
-  btn.innerHTML = '↻ Load Models';
-  btn.disabled = false;
-
-  if (!data.ok) {
-    showAlert('llm-alert', 'error', '✗ ' + data.message);
-    return;
-  }
-
-  allModels = data.models;
-  filterModels();
+  btn.innerHTML = '↻ Load Models'; btn.disabled = false;
+  if (!data.ok) { showAlert('llm-alert', 'error', '✗ ' + data.message); return; }
+  allModels = data.models; filterModels();
   showAlert('llm-alert', 'success', `✓ Loaded ${data.models.length} models`);
 }
-
 function filterModels() {
   const freeOnly = document.getElementById('free-only').checked;
   const sel = document.getElementById('llm-model');
   const filtered = freeOnly ? allModels.filter(m => m.free) : allModels;
-
-  sel.innerHTML = filtered.map(m =>
-    `<option value="${m.id}">${m.name}${m.free ? ' 🆓' : ''}</option>`
-  ).join('');
+  sel.innerHTML = filtered.map(m => `<option value="${m.id}">${m.name}${m.free ? ' 🆓' : ''}</option>`).join('');
 }
 
-// \u2500\u2500 Init \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// Init
 runSystemCheck();
 </script>
-
 </body>
 </html>
-
