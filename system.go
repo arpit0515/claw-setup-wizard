@@ -25,11 +25,14 @@ type SystemStatus struct {
 	TelegramToken   string `json:"telegram_token"`
 	TelegramUser    string `json:"telegram_user"`
 	ServiceStatus	string	`json:"service_status"`
+	HasClawTools    bool   `json:"has_claw_tools"`
+	ClawToolsCount  int    `json:"claw_tools_count"`
 	Checklist	struct	{
 		System	bool	`json:"system"`
 		Provider	bool	`json:"provider"`
 		Telegram	bool	`json:"telegram"`
 		Soul	bool	`json:"soul"`
+		Tools   bool    `json:"tools"`
 		Service	bool	`json:"service"`
 		}	`json:"checklist"`
 	}
@@ -152,11 +155,16 @@ func buildSystemStatus() SystemStatus {
 		}
 	}
 
+	// ClawTools
+	s.ClawToolsCount = countInstalledTools()
+	s.HasClawTools = s.ClawToolsCount > 0
+
 	// Checklist
 	s.Checklist.System = s.PicoclawInstalled
 	s.Checklist.Provider = s.HasProvider
 	s.Checklist.Telegram = s.HasTelegram
 	s.Checklist.Soul = s.HasSoul
+	s.Checklist.Tools = s.HasClawTools
 	s.Checklist.Service = s.ServiceStatus == "active"
 
 	return s

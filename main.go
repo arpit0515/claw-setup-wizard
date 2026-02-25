@@ -1,4 +1,5 @@
 package main
+
 import (
 	"embed"
 	"fmt"
@@ -8,10 +9,11 @@ import (
 	"net/http"
 	"os/exec"
 	"strings"
-	)
+)
 
 //go:embed templates/*
 var templateFiles embed.FS
+
 var tmpl *template.Template
 
 func main() {
@@ -22,6 +24,8 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
+
+	// ── Existing routes ──────────────────────────────────────────
 	mux.HandleFunc("/", handleIndex)
 	mux.HandleFunc("/api/system-check", handleSystemCheck)
 	mux.HandleFunc("/api/validate-llm", handleValidateLLM)
@@ -35,6 +39,10 @@ func main() {
 	mux.HandleFunc("/api/install-picoclaw", handleInstallPicoclaw)
 	mux.HandleFunc("/api/models", handleGetModels)
 
+	// ── ClawTools routes (new) ───────────────────────────────────
+	mux.HandleFunc("/api/claw-tools-list", handleClawToolsList)
+	mux.HandleFunc("/api/install-claw-tools", handleInstallClawTools)
+
 	ip := getLocalIP()
 	fmt.Println(" *** claw-setup is running **** ")
 	fmt.Println("--------------------------------")
@@ -43,10 +51,11 @@ func main() {
 	fmt.Println("--------------------------------")
 	fmt.Println(" Open either address in browser ")
 	fmt.Println("    Press Ctrl + C to stop      ")
+
 	log.Fatal(http.ListenAndServe("0.0.0.0:3000", mux))
 }
 
-func handleIndex (w http.ResponseWriter, r *http.Request) {
+func handleIndex(w http.ResponseWriter, r *http.Request) {
 	tmpl.ExecuteTemplate(w, "index.html", nil)
 }
 
@@ -55,11 +64,10 @@ func getLocalIP() string {
 	if err != nil {
 		return "localhost"
 	}
-
 	for _, addr := range addrs {
 		if ipnet, ok := addr.(*net.IPNet); ok &&
-		!ipnet.IP.IsLoopback() &&
-		ipnet.IP.To4() != nil {
+			!ipnet.IP.IsLoopback() &&
+			ipnet.IP.To4() != nil {
 			return ipnet.IP.String()
 		}
 	}
@@ -67,6 +75,6 @@ func getLocalIP() string {
 }
 
 func runCommand(name string, args ...string) (string, error) {
-	out, err := exec.Command(name, args...).CombinedOutput() 
+	out, err := exec.Command(name, args...).CombinedOutput()
 	return strings.TrimSpace(string(out)), err
 }

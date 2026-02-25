@@ -17,6 +17,7 @@
     --text: #e8eaf6;
     --text2: #8b90b0;
     --success: #00d4aa;
+    --amber: #f5a623;
     --radius: 12px;
     --header-h: 56px;
     --bottom-nav-h: 64px;
@@ -481,6 +482,78 @@
     .btn { width: 100%; justify-content: center; }
     .btn-row { flex-direction: column; align-items: stretch; }
   }
+  /* ── Tool grid (ClawTools step) ── */
+  .tool-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .tool-card {
+    position: relative;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    user-select: none;
+  }
+  .tool-card:active { transform: scale(0.98); }
+  .tool-card.available:hover { border-color: var(--accent); }
+  .tool-card.selected { border-color: var(--amber); background: rgba(245,166,35,0.06); }
+  .tool-card.installed { border-color: var(--success); background: rgba(0,212,170,0.05); cursor: default; }
+  .tool-card.dim { opacity: 0.5; cursor: default; }
+  .tool-card.installing { opacity: 0.7; cursor: wait; }
+  .tool-card-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .tool-icon { font-size: 22px; }
+  .tool-status-badge {
+    font-size: 10px; font-weight: 700; padding: 2px 7px;
+    border-radius: 10px;
+  }
+  .tsb-available { background: rgba(245,166,35,0.15); color: var(--amber); border: 1px solid rgba(245,166,35,0.3); }
+  .tsb-soon      { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+  .tsb-installed { background: rgba(0,212,170,0.15); color: var(--success); border: 1px solid rgba(0,212,170,0.3); }
+  .tool-name { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+  .tool-desc { font-size: 12px; color: var(--text2); line-height: 1.5; margin-bottom: 8px; }
+  .tool-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tool-tag {
+    font-size: 10px; background: var(--surface2);
+    border: 1px solid var(--border); color: var(--text2);
+    padding: 2px 7px; border-radius: 4px;
+  }
+  .tool-select-indicator {
+    position: absolute; top: 10px; right: 10px;
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; transition: all 0.15s;
+  }
+  .tool-card.selected  .tool-select-indicator { background: var(--amber);   border-color: var(--amber);   color: #000; }
+  .tool-card.installed .tool-select-indicator { background: var(--success); border-color: var(--success); color: #000; }
+  .tool-install-progress {
+    margin-top: 8px; font-size: 11px; color: var(--accent2);
+    display: none; align-items: center; gap: 6px;
+  }
+  .tool-card.installing .tool-install-progress { display: flex; }
+  /* ── Repo strip ── */
+  .repo-strip {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 14px;
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 16px; font-size: 13px;
+  }
+  .repo-strip .repo-icon { font-size: 18px; flex-shrink: 0; }
+  .repo-strip .repo-text { flex: 1; min-width: 0; }
+  .repo-strip .repo-url { color: var(--accent2); font-size: 11px; word-break: break-all; }
+  /* amber accent for optional step */
+  .btn-amber { background: var(--amber); color: #000; }
+  @media (max-width: 640px) {
+    .tool-grid { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
@@ -516,6 +589,10 @@
     </div>
     <div class="step-item" id="nav-4" onclick="goTo(4)">
       <div class="step-icon" id="icon-4">5</div>
+      <div><div class="step-label">MCP Tools</div><div class="step-sub">ClawTools connectors</div></div>
+    </div>
+    <div class="step-item" id="nav-5" onclick="goTo(5)">
+      <div class="step-icon" id="icon-5">6</div>
       <div><div class="step-label">Launch</div><div class="step-sub">Go live</div></div>
     </div>
   </aside>
@@ -722,8 +799,53 @@
       </div>
     </div>
 
-    <!-- STEP 4: Launch -->
+    <!-- STEP 4: MCP Tools -->
     <div class="section" id="step-4">
+      <h2>MCP Tool Connectors</h2>
+      <p class="subtitle">Connect real tools to your agent — Gmail, Calendar, and more. Powered by <strong style="color:var(--amber)">ClawTools</strong>. Select what you want and click Install. <span style="color:var(--text2)">Optional — your agent works without them.</span></p>
+
+      <div class="repo-strip">
+        <div class="repo-icon">🦞</div>
+        <div class="repo-text">
+          <div style="font-weight:600; margin-bottom:2px">github.com/arpit0515/claw-tools.dev</div>
+          <div class="repo-url">Tools clone into ~/.claw/tools-repo · tokens never leave your device · MIT open source</div>
+        </div>
+        <a href="https://github.com/arpit0515/claw-tools.dev" target="_blank" style="color:var(--accent2); font-size:11px; white-space:nowrap; text-decoration:none">View repo ↗</a>
+      </div>
+
+      <div id="claw-tools-grid" class="tool-grid">
+        <div class="card" style="grid-column:1/-1">
+          <div style="display:flex;align-items:center;gap:8px;color:var(--text2);font-size:13px">
+            <div class="spinner"></div> Loading available tools...
+          </div>
+        </div>
+      </div>
+
+      <div id="claw-alert" class="alert"></div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="loadClawTools()">↻ Refresh</button>
+        <button class="btn btn-primary" id="btn-install-tools" onclick="installSelectedTools()" disabled>⬇ Install Selected</button>
+        <button class="btn btn-secondary" onclick="goTo(5)">Skip →</button>
+        <button class="btn btn-primary" id="btn-claw-next" style="display:none" onclick="goTo(5)">Continue →</button>
+      </div>
+
+      <div id="claw-config-result" style="display:none">
+        <div class="card" style="margin-top:14px; border-color:var(--success)">
+          <div class="card-title">Add to your editor MCP config</div>
+          <p style="font-size:12px; color:var(--text2); margin-bottom:10px">Cursor / Claude Code / Windsurf — paste into your MCP settings:</p>
+          <div class="cmd-block">
+            <code id="mcp-config-snippet" style="white-space:pre; font-size:11px; line-height:1.7; color:var(--accent2)"></code>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-secondary" onclick="copyMCPConfig()" id="btn-copy-mcp">Copy Config</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 5: Launch -->
+    <div class="section" id="step-5">
       <h2>Launch Your Twin 🚀</h2>
       <p class="subtitle">Everything's configured. Let's get PicoClaw running permanently on your Pi.</p>
       <div class="card" id="final-checklist">
@@ -780,6 +902,10 @@
   </div>
   <div class="bottom-nav-item" id="bnav-4" onclick="goTo(4)">
     <div class="bnav-icon" id="bicon-4">5</div>
+    <div class="bnav-label">Tools</div>
+  </div>
+  <div class="bottom-nav-item" id="bnav-5" onclick="goTo(5)">
+    <div class="bnav-icon" id="bicon-5">6</div>
     <div class="bnav-label">Launch</div>
   </div>
 </nav>
@@ -788,8 +914,8 @@
 let currentStep = 0;
 let selectedProvider = 'openrouter';
 let systemData = {};
-let state = { system: false, llm: false, telegram: false, soul: false, service: false };
-const progress = [10, 30, 55, 75, 95];
+let state = { system: false, llm: false, telegram: false, soul: false, tools: false, service: false };
+const progress = [10, 28, 46, 62, 78, 95];
 
 const providerModels = {
   openrouter: {
@@ -834,7 +960,8 @@ function goTo(n) {
   if (n === 1) populateLLM();
   if (n === 2) populateTelegram();
   if (n === 3) populateSoul();
-  if (n === 4) loadFinalChecklist();
+  if (n === 4) loadClawTools();
+  if (n === 5) loadFinalChecklist();
 }
 
 function markDone(n) {
@@ -907,11 +1034,12 @@ async function runSystemCheck() {
     document.getElementById('install-picoclaw-section').style.display = 'none';
     hideAlert('sys-alert');
     document.getElementById('btn-sys-next').disabled = false;
-    if (data.checklist.system) markDone(0);
+    if (data.checklist.system)   { markDone(0); }
     if (data.checklist.provider) { markDone(1); state.llm = true; }
     if (data.checklist.telegram) { markDone(2); state.telegram = true; }
-    if (data.checklist.soul) { markDone(3); state.soul = true; }
-    if (data.checklist.service) { markDone(4); state.service = true; }
+    if (data.checklist.soul)     { markDone(3); state.soul = true; }
+    if (data.checklist.tools)    { markDone(4); state.tools = true; }
+    if (data.checklist.service)  { markDone(5); state.service = true; }
     state.system = true;
   }
 }
@@ -1040,16 +1168,148 @@ async function saveSoul() {
   } else { showAlert('soul-save-alert', 'error', '✗ ' + data.message); }
 }
 
-// ── Step 4: Launch ───────────────────────────────────────────────
+// ── Step 4: ClawTools ─────────────────────────────────────────────
+let clawToolsData = [];
+let selectedTools = new Set();
+
+async function loadClawTools() {
+  document.getElementById('claw-tools-grid').innerHTML = `
+    <div class="card" style="grid-column:1/-1">
+      <div style="display:flex;align-items:center;gap:8px;color:var(--text2);font-size:13px">
+        <div class="spinner"></div> Loading available tools...
+      </div>
+    </div>`;
+  hideAlert('claw-alert');
+
+  const r = await fetch('/api/claw-tools-list');
+  const data = await r.json();
+  if (!data.ok) {
+    document.getElementById('claw-tools-grid').innerHTML = '';
+    showAlert('claw-alert', 'error', '✗ ' + data.message);
+    return;
+  }
+  clawToolsData = data.tools;
+  selectedTools.clear();
+  renderToolCards();
+  // If some are already installed, mark step done
+  if (data.tools.some(t => t.installed)) { markDone(4); state.tools = true; }
+}
+
+function renderToolCards() {
+  const grid = document.getElementById('claw-tools-grid');
+  grid.innerHTML = clawToolsData.map(tool => {
+    const isAvail     = tool.status === 'available';
+    const isInstalled = tool.installed === true;
+    const isSelected  = selectedTools.has(tool.id);
+    let cardClass = 'tool-card';
+    let badgeClass = 'tsb-available', badgeText = 'Available', indicator = '';
+    if (isInstalled)       { cardClass += ' installed'; badgeClass = 'tsb-installed'; badgeText = 'Installed'; indicator = '✓'; }
+    else if (!isAvail)     { cardClass += ' dim';       badgeClass = 'tsb-soon';      badgeText = 'Coming soon'; }
+    else if (isSelected)   { cardClass += ' selected';  indicator = '✓'; }
+    else                   { cardClass += ' available'; }
+
+    const onclick = isAvail && !isInstalled ? `onclick="toggleTool('${tool.id}')"` : '';
+    const tags = (tool.mcp_tools || []).map(t => `<span class="tool-tag">${t}</span>`).join('');
+
+    return `
+      <div class="${cardClass}" id="toolcard-${tool.id}" ${onclick}>
+        <div class="tool-select-indicator">${indicator}</div>
+        <div class="tool-card-head">
+          <div class="tool-icon">${tool.icon || '🔧'}</div>
+        </div>
+        <div class="tool-name">${tool.name}
+<span class="tool-status-badge ${badgeClass}">${badgeText}</span>
+        </div>
+        <div class="tool-desc">${tool.description}</div>
+        <div class="tool-tags">${tags}</div>
+        <div class="tool-install-progress"><div class="spinner"></div> Installing...</div>
+      </div>`;
+  }).join('');
+  updateInstallBtn();
+}
+
+function toggleTool(id) {
+  selectedTools.has(id) ? selectedTools.delete(id) : selectedTools.add(id);
+  renderToolCards();
+}
+
+function updateInstallBtn() {
+  const btn = document.getElementById('btn-install-tools');
+  btn.disabled = selectedTools.size === 0;
+  btn.textContent = selectedTools.size > 0
+    ? `⬇ Install ${selectedTools.size} Tool${selectedTools.size > 1 ? 's' : ''}`
+    : '⬇ Install Selected';
+}
+
+async function installSelectedTools() {
+  if (selectedTools.size === 0) return;
+  const btn = document.getElementById('btn-install-tools');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Installing...';
+  hideAlert('claw-alert');
+
+  // Show installing state on selected cards
+  selectedTools.forEach(id => {
+    const card = document.getElementById(`toolcard-${id}`);
+    if (card) card.className = 'tool-card installing';
+  });
+
+  const fd = new FormData();
+  fd.append('tool_ids', JSON.stringify([...selectedTools]));
+
+  const r = await fetch('/api/install-claw-tools', { method: 'POST', body: fd });
+  const data = await r.json();
+  btn.innerHTML = '⬇ Install Selected';
+
+  if (data.ok) {
+    // Update installed state in local data
+    (data.installed || []).forEach(id => {
+      const t = clawToolsData.find(t => t.id === id);
+      if (t) t.installed = true;
+    });
+    selectedTools.clear();
+    renderToolCards();
+    markDone(4); state.tools = true;
+
+    const msg = `✓ Installed: ${data.installed.join(', ')}` +
+      (data.failed?.length ? ` — Failed: ${data.failed.join(', ')}` : '');
+    showAlert('claw-alert', 'success', msg);
+
+    if (data.mcp_config) {
+      document.getElementById('claw-config-result').style.display = 'block';
+      document.getElementById('mcp-config-snippet').textContent = data.mcp_config;
+    }
+    document.getElementById('btn-claw-next').style.display = 'inline-flex';
+  } else {
+    renderToolCards();
+    showAlert('claw-alert', 'error', '✗ ' + (data.message || 'Installation failed'));
+    btn.disabled = false;
+  }
+}
+
+function copyMCPConfig() {
+  const text = document.getElementById('mcp-config-snippet').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('btn-copy-mcp');
+    btn.textContent = 'Copied ✓';
+    setTimeout(() => { btn.textContent = 'Copy Config'; }, 2000);
+  });
+}
+
+// ── Step 5: Launch ───────────────────────────────────────────────
 async function loadFinalChecklist() {
   const r = await fetch('/api/system-check');
   const data = await r.json();
+  const toolsLabel = data.claw_tools_count > 0
+    ? `MCP Tools (${data.claw_tools_count} installed)`
+    : 'MCP Tools';
   const items = [
-    ['PicoClaw installed', data.picoclaw_installed],
+    ['PicoClaw installed',      data.picoclaw_installed],
     ['LLM provider configured', data.has_provider],
-    ['Telegram connected', data.has_telegram],
-    ['SOUL.md created', data.has_soul],
-    ['Service running', data.service_status === 'active'],
+    ['Telegram connected',      data.has_telegram],
+    ['SOUL.md created',         data.has_soul],
+    [toolsLabel,                data.has_claw_tools],
+    ['Service running',         data.service_status === 'active'],
   ];
   document.getElementById('checklist-rows').innerHTML = items.map(([label, ok]) => `
     <div class="final-item">
@@ -1057,19 +1317,12 @@ async function loadFinalChecklist() {
       <span>${label}</span>
     </div>`).join('');
 
-  // If service is already running, hide the install card and show success
   if (data.service_status === 'active') {
     document.getElementById('service-install-card').style.display = 'none';
     document.getElementById('launch-success').style.display = 'block';
     document.getElementById('progress').style.width = '100%';
-    markDone(4);
-
-    const isMac = data.os === 'mac';
-    document.getElementById('cmd-hint').textContent = isMac ? 'Useful commands on your Mac:' : 'Useful commands on your Pi:';
-    document.getElementById('cmd-status').textContent = isMac ? 'launchctl list | grep picoclaw' : 'systemctl --user status picoclaw';
-    document.getElementById('cmd-restart').textContent = isMac
-      ? 'launchctl unload ~/Library/LaunchAgents/com.picoclaw.agent.plist && launchctl load ~/Library/LaunchAgents/com.picoclaw.agent.plist'
-      : 'systemctl --user restart picoclaw';
+    markDone(5);
+    setLaunchCommands(data.os === 'mac');
   }
 }
 
@@ -1079,26 +1332,25 @@ async function installService() {
   const data = await r.json();
   if (data.ok) {
     showAlert('service-alert', 'success', '✓ ' + data.message);
-    // Hide the install card — service is already running
     document.getElementById('service-install-card').style.display = 'none';
     document.getElementById('launch-success').style.display = 'block';
     document.getElementById('progress').style.width = '100%';
-    markDone(4); state.service = true;
-
-    // Populate OS-specific commands
-    const isMac = systemData.os === 'mac';
-    document.getElementById('cmd-hint').textContent = isMac
-      ? 'Useful commands on your Mac:'
-      : 'Useful commands on your Pi:';
-    document.getElementById('cmd-status').textContent = isMac
-      ? 'launchctl list | grep picoclaw'
-      : 'systemctl --user status picoclaw';
-    document.getElementById('cmd-restart').textContent = isMac
-      ? 'launchctl unload ~/Library/LaunchAgents/com.picoclaw.agent.plist && launchctl load ~/Library/LaunchAgents/com.picoclaw.agent.plist'
-      : 'systemctl --user restart picoclaw';
-
+    markDone(5); state.service = true;
+    setLaunchCommands(systemData.os === 'mac');
     loadFinalChecklist();
-  } else { showAlert('service-alert', 'error', '✗ ' + data.message); }
+  } else {
+    showAlert('service-alert', 'error', '✗ ' + data.message);
+  }
+}
+
+function setLaunchCommands(isMac) {
+  document.getElementById('cmd-hint').textContent = isMac ? 'Useful commands on your Mac:' : 'Useful commands on your Pi:';
+  document.getElementById('cmd-status').textContent = isMac
+    ? 'launchctl list | grep picoclaw'
+    : 'systemctl --user status picoclaw';
+  document.getElementById('cmd-restart').textContent = isMac
+    ? 'launchctl unload ~/Library/LaunchAgents/com.picoclaw.agent.plist && launchctl load ~/Library/LaunchAgents/com.picoclaw.agent.plist'
+    : 'systemctl --user restart picoclaw';
 }
 
 function populateLLM() {
