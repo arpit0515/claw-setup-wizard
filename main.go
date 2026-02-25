@@ -39,7 +39,7 @@ func main() {
 	fmt.Println(" *** claw-setup is running **** ")
 	fmt.Println("--------------------------------")
 	fmt.Println("  Local: http://localhost:3000  ")
-	fmt.Println(" Network: http://%s:3000", ip)
+	fmt.Printf(" Network: http://%s:3000\n", ip)
 	fmt.Println("--------------------------------")
 	fmt.Println(" Open either address in browser ")
 	fmt.Println("    Press Ctrl + C to stop      ")

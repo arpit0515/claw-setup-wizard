@@ -46,30 +46,45 @@ if [ \"\$(tty)\" = \"/dev/tty1\" ]; then
   $AUTORUN_CMD
 fi"
 
-if ! grep -q "$AUTORUN_MARKER" ~/.bashrc 2>/dev/null; then
+if grep -q "$AUTORUN_MARKER" ~/.bashrc 2>/dev/null; then
   log ""
-  log "🔁 Registering autorun on boot (terminal login on tty1)..."
-  echo "" >> ~/.bashrc
-  echo "$AUTORUN_BLOCK" >> ~/.bashrc
+  log "✓ Startup autorun already registered, skipping"
+else
+  log ""
+  printf "🔁 Would you like claw-setup to launch automatically on boot? [y/N]: "
+  read -r AUTORUN_ANSWER </dev/tty
+  case "$AUTORUN_ANSWER" in
+    [yY][eE][sS]|[yY])
+      echo "" >> ~/.bashrc
+      echo "$AUTORUN_BLOCK" >> ~/.bashrc
+      log "✓ Autorun registered in ~/.bashrc"
 
-  # Enable auto-login on tty1 for the current user so ~/.bashrc is sourced
-  CURRENT_USER=$(whoami)
-  AUTOLOGIN_CONF="/etc/systemd/system/getty@tty1.service.d/autologin.conf"
-  if [ ! -f "$AUTOLOGIN_CONF" ]; then
-    log "   Configuring auto-login for $CURRENT_USER on tty1..."
-    sudo mkdir -p "$(dirname $AUTOLOGIN_CONF)"
-    sudo bash -c "cat > $AUTOLOGIN_CONF" <<EOF
+      # Auto-login on tty1 is only relevant on Linux with systemd
+      if [[ "$(uname -s)" == "Linux" ]] && command -v systemctl &>/dev/null; then
+        CURRENT_USER=$(whoami)
+        AUTOLOGIN_CONF="/etc/systemd/system/getty@tty1.service.d/autologin.conf"
+        if [ ! -f "$AUTOLOGIN_CONF" ]; then
+          log "   Configuring auto-login for $CURRENT_USER on tty1 (requires sudo)..."
+          sudo mkdir -p "$(dirname $AUTOLOGIN_CONF)"
+          sudo bash -c "cat > $AUTOLOGIN_CONF" <<EOF
 [Service]
 ExecStart=
 ExecStart=-/sbin/agetty --autologin $CURRENT_USER --noclear %I \$TERM
 EOF
-    sudo systemctl daemon-reload
-    sudo systemctl restart getty@tty1
-    log "✓ Auto-login configured for $CURRENT_USER"
-  fi
-  log "✓ Autorun registered — will launch in terminal on next boot"
-else
-  log "✓ Autorun already registered, skipping"
+          sudo systemctl daemon-reload
+          sudo systemctl restart getty@tty1
+          log "✓ Auto-login configured for $CURRENT_USER"
+        fi
+      else
+        log "   ℹ  Skipping tty1 auto-login (not a Linux/systemd system)"
+      fi
+
+      log "✓ Will launch automatically on next boot"
+      ;;
+    *)
+      log "⏭  Skipping startup autorun — run install.sh again anytime to set it up"
+      ;;
+  esac
 fi
 
 # ── Detect architecture ───────────────────────────────────────────────────────
@@ -78,6 +93,7 @@ case $ARCH in
   aarch64) GO_ARCH="arm64" ;;
   armv7l)  GO_ARCH="armv6l" ;;
   x86_64)  GO_ARCH="amd64" ;;
+  arm64)   GO_ARCH="arm64" ;;  # macOS Apple Silicon
   *)
     log "❌ Unsupported architecture: $ARCH"
     exit 1
@@ -87,24 +103,45 @@ log ""
 log "✓ Architecture: $ARCH ($GO_ARCH)"
 
 # ── Check / Install Go ────────────────────────────────────────────────────────
+# Prepend /usr/local/go/bin so we find a previously installed Go even when
+# ~/.zshrc / ~/.bash_profile haven't been sourced in this shell session
+export PATH=/usr/local/go/bin:$PATH
+
 if command -v go &>/dev/null; then
   GO_INSTALLED=$(go version | awk '{print $3}' | sed 's/go//')
   log "✓ Go already installed: $GO_INSTALLED"
 else
   log ""
-  log "⬇  Go not found — installing Go $GO_VERSION in background..."
-  GO_TARBALL="go${GO_VERSION}.linux-${GO_ARCH}.tar.gz"
+  log "⬇  Go not found — installing Go $GO_VERSION..."
+
+  OS=$(uname -s)
+  if [[ "$OS" == "Darwin" ]]; then
+    GO_TARBALL="go${GO_VERSION}.darwin-${GO_ARCH}.tar.gz"
+  else
+    GO_TARBALL="go${GO_VERSION}.linux-${GO_ARCH}.tar.gz"
+  fi
   GO_URL="https://go.dev/dl/${GO_TARBALL}"
   TMP_DIR=$(mktemp -d)
   log "   Downloading $GO_URL"
-  wget -q -O "$TMP_DIR/$GO_TARBALL" "$GO_URL" >> "$LOG_FILE" 2>&1
-  log "   Extracting..."
+  # Use curl on macOS (wget may not be present), wget on Linux
+  if [[ "$OS" == "Darwin" ]]; then
+    curl -fsSL -o "$TMP_DIR/$GO_TARBALL" "$GO_URL" >> "$LOG_FILE" 2>&1
+  else
+    wget -q -O "$TMP_DIR/$GO_TARBALL" "$GO_URL" >> "$LOG_FILE" 2>&1
+  fi
+  log "   Extracting to /usr/local/go..."
   sudo rm -rf /usr/local/go
   sudo tar -C /usr/local -xzf "$TMP_DIR/$GO_TARBALL" >> "$LOG_FILE" 2>&1
   rm -rf "$TMP_DIR"
   export PATH=$PATH:/usr/local/go/bin
-  grep -q '/usr/local/go/bin' ~/.bashrc || echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
-  grep -q '/usr/local/go/bin' ~/.profile || echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.profile
+  if [[ "$OS" == "Darwin" ]]; then
+    # macOS defaults to zsh; update both shells just in case
+    grep -q '/usr/local/go/bin' ~/.zshrc 2>/dev/null    || echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.zshrc
+    grep -q '/usr/local/go/bin' ~/.bash_profile 2>/dev/null || echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bash_profile
+  else
+    grep -q '/usr/local/go/bin' ~/.bashrc   || echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+    grep -q '/usr/local/go/bin' ~/.profile  || echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.profile
+  fi
   log "✓ Go $GO_VERSION installed"
 fi
 
@@ -116,7 +153,12 @@ log "🔨 Building claw-setup..."
 log "✓ Build complete"
 
 # ── Start ─────────────────────────────────────────────────────────────────────
-LOCAL_IP=$(hostname -I | awk '{print $1}')
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  LOCAL_IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo "localhost")
+else
+  LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+fi
+[ -z "$LOCAL_IP" ] && LOCAL_IP="localhost"
 log ""
 log "================================"
 log "✅ Ready — open in your browser:"

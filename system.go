@@ -11,6 +11,7 @@ import (
 
 // SystemStatus that holds everything we check on the Pi
 type SystemStatus struct {
+	OS              string `json:"os"`
 	PicoclawInstalled	bool	`json:"picoclaw_installed"`
 	PicoclawVersion	string	`json:"picoclaw_version"`
 	DiskSpace	string	`json:"disk_space"`
@@ -41,6 +42,16 @@ func handleSystemCheck(w http.ResponseWriter, r *http.Request) {
 
 func buildSystemStatus() SystemStatus {
 	var s SystemStatus
+
+	// Detect OS
+	osName, _ := runCommand("uname", "-s")
+	osName = strings.TrimSpace(osName)
+	if osName == "Darwin" {
+		s.OS = "mac"
+	} else {
+		s.OS = "linux"
+	}
+
 	// Check PicoClaw
 	path, err := exec.LookPath("picoclaw")
 	if err == nil && path != "" {
@@ -124,12 +135,21 @@ func buildSystemStatus() SystemStatus {
 		s.HasSoul = true
 	}
 
-	// Service status
-	out, err = runCommand("systemctl", "--user", "is-active", "picoclaw")
-	if err == nil {
-		s.ServiceStatus = out
+	// Service status — launchctl on macOS, systemctl on Linux
+	if s.OS == "mac" {
+		out, err = runCommand("launchctl", "list", "com.picoclaw.agent")
+		if err == nil && !strings.Contains(out, "Could not find service") {
+			s.ServiceStatus = "active"
+		} else {
+			s.ServiceStatus = "inactive"
+		}
 	} else {
-		s.ServiceStatus = "inactive"
+		out, err = runCommand("systemctl", "--user", "is-active", "picoclaw")
+		if err == nil && strings.TrimSpace(out) == "active" {
+			s.ServiceStatus = "active"
+		} else {
+			s.ServiceStatus = "inactive"
+		}
 	}
 
 	// Checklist
@@ -203,4 +223,3 @@ func okResponse(w http.ResponseWriter, msg string, extra map[string]interface{})
 	}
 	jsonResponse(w, resp)
 }
-
