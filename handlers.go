@@ -200,19 +200,84 @@ func handleInstallService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ok, msg := installSystemdService()
+	ok, msg := installService()
 	jsonResponse(w, map[string]interface{}{
 		"ok":      ok,
 		"message": msg,
 	})
 }
 
-func installSystemdService() (bool, string) {
+func installService() (bool, string) {
 	picocławPath, err := exec.LookPath("picoclaw")
 	if err != nil {
-		return false, "picoclaw not found in PATH"
+		return false, "picoclaw not found in PATH — install PicoClaw first"
 	}
 
+	osName, _ := runCommand("uname", "-s")
+	osName = strings.TrimSpace(osName)
+
+	if osName == "Darwin" {
+		return installLaunchdService(picocławPath)
+	}
+	return installSystemdService(picocławPath)
+}
+
+// macOS: launchd plist in ~/Library/LaunchAgents
+func installLaunchdService(picocławPath string) (bool, string) {
+	home, _ := os.UserHomeDir()
+	launchDir := filepath.Join(home, "Library", "LaunchAgents")
+	os.MkdirAll(launchDir, 0755)
+
+	logDir := filepath.Join(home, ".picoclaw", "logs")
+	os.MkdirAll(logDir, 0755)
+
+	plistContent := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.picoclaw.agent</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>%s</string>
+    <string>gateway</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>WorkingDirectory</key>
+  <string>%s</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key>
+    <string>%s</string>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>%s/picoclaw.log</string>
+  <key>StandardErrorPath</key>
+  <string>%s/picoclaw.err</string>
+</dict>
+</plist>
+`, picocławPath, home, home, logDir, logDir)
+
+	plistPath := filepath.Join(launchDir, "com.picoclaw.agent.plist")
+	if err := os.WriteFile(plistPath, []byte(plistContent), 0644); err != nil {
+		return false, "Failed to write plist: " + err.Error()
+	}
+
+	// Unload first in case it was already loaded, ignore error
+	exec.Command("launchctl", "unload", plistPath).Run()
+
+	out, err := exec.Command("launchctl", "load", plistPath).CombinedOutput()
+	if err != nil {
+		return false, "launchctl load failed: " + strings.TrimSpace(string(out))
+	}
+	return true, "Service installed — PicoClaw will start automatically on login"
+}
+
+// Linux: systemd user service
+func installSystemdService(picocławPath string) (bool, string) {
 	home, _ := os.UserHomeDir()
 	serviceDir := filepath.Join(home, ".config", "systemd", "user")
 	os.MkdirAll(serviceDir, 0755)
@@ -245,7 +310,11 @@ WantedBy=default.target
 	}
 	for _, cmd := range commands {
 		if out, err := exec.Command(cmd[0], cmd[1:]...).CombinedOutput(); err != nil {
-			return false, strings.TrimSpace(string(out))
+			msg := strings.TrimSpace(string(out))
+			if msg == "" {
+				msg = "command failed: " + strings.Join(cmd, " ")
+			}
+			return false, msg
 		}
 	}
 	return true, "Service installed and started"

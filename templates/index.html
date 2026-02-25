@@ -715,7 +715,7 @@
           <div id="soul-save-alert" class="alert"></div>
           <div class="btn-row">
             <button class="btn btn-secondary" onclick="generateSoul()">↻ Regenerate</button>
-            <button class="btn btn-primary" onclick="saveSoul()">Save to Pi</button>
+            <button class="btn btn-primary" onclick="saveSoul()" id="btn-save-soul">Save to Device</button>
             <button class="btn btn-primary" id="btn-soul-next" disabled onclick="goTo(4)">Continue →</button>
           </div>
         </div>
@@ -732,9 +732,8 @@
           <div class="status-row"><span>Loading...</span></div>
         </div>
       </div>
-      <div class="card">
-        <div class="card-title">Install as System Service</div>
-        <p style="font-size:13px; color:var(--text2); margin-bottom:14px">This sets PicoClaw to start automatically on boot and restart if it crashes.</p>
+      <div class="card" id="service-install-card">
+        <p style="font-size:13px; color:var(--text2); margin-bottom:14px" id="service-desc">This sets PicoClaw to start automatically on boot and restart if it crashes.</p>
         <div id="service-alert" class="alert"></div>
         <div class="btn-row">
           <button class="btn btn-primary" onclick="installService()">⚡ Install &amp; Start Service</button>
@@ -748,9 +747,9 @@
             <div style="font-size:18px; font-weight:700; margin-bottom:6px">Your twin is live!</div>
             <div style="color:var(--text2); font-size:13px; margin-bottom:16px">Open Telegram and send your bot a message. It will respond as you.</div>
             <div class="cmd-block">
-              <div class="cmd-hint">Useful commands on your Pi:</div>
-              <code>systemctl --user status picoclaw</code>
-              <code>systemctl --user restart picoclaw</code>
+              <div class="cmd-hint" id="cmd-hint">Useful commands:</div>
+              <code id="cmd-status"></code>
+              <code id="cmd-restart"></code>
               <code>picoclaw agent -m "hello"</code>
             </div>
           </div>
@@ -870,6 +869,14 @@ async function runSystemCheck() {
   const r = await fetch('/api/system-check');
   const data = await r.json();
   systemData = data;
+
+  // Update OS-sensitive labels once we know the OS
+  const isMac = data.os === 'mac';
+  const deviceLabel = isMac ? 'Mac' : 'Pi';
+  document.getElementById('btn-save-soul').textContent = `Save to ${deviceLabel}`;
+  document.getElementById('service-desc').textContent = isMac
+    ? 'This installs a launchd agent so PicoClaw starts automatically on login and restarts if it crashes.'
+    : 'This installs a systemd service so PicoClaw starts automatically on boot and restarts if it crashes.';
 
   const rows = [
     ['PicoClaw', data.picoclaw_installed, data.picoclaw_version || 'Not found'],
@@ -1049,17 +1056,47 @@ async function loadFinalChecklist() {
       <span class="check">${ok ? '✅' : '⭕'}</span>
       <span>${label}</span>
     </div>`).join('');
+
+  // If service is already running, hide the install card and show success
+  if (data.service_status === 'active') {
+    document.getElementById('service-install-card').style.display = 'none';
+    document.getElementById('launch-success').style.display = 'block';
+    document.getElementById('progress').style.width = '100%';
+    markDone(4);
+
+    const isMac = data.os === 'mac';
+    document.getElementById('cmd-hint').textContent = isMac ? 'Useful commands on your Mac:' : 'Useful commands on your Pi:';
+    document.getElementById('cmd-status').textContent = isMac ? 'launchctl list | grep picoclaw' : 'systemctl --user status picoclaw';
+    document.getElementById('cmd-restart').textContent = isMac
+      ? 'launchctl unload ~/Library/LaunchAgents/com.picoclaw.agent.plist && launchctl load ~/Library/LaunchAgents/com.picoclaw.agent.plist'
+      : 'systemctl --user restart picoclaw';
+  }
 }
 
 async function installService() {
-  showAlert('service-alert', 'info', 'Installing systemd service...');
+  showAlert('service-alert', 'info', 'Installing service...');
   const r = await fetch('/api/install-service', { method: 'POST' });
   const data = await r.json();
   if (data.ok) {
     showAlert('service-alert', 'success', '✓ ' + data.message);
+    // Hide the install card — service is already running
+    document.getElementById('service-install-card').style.display = 'none';
     document.getElementById('launch-success').style.display = 'block';
     document.getElementById('progress').style.width = '100%';
     markDone(4); state.service = true;
+
+    // Populate OS-specific commands
+    const isMac = systemData.os === 'mac';
+    document.getElementById('cmd-hint').textContent = isMac
+      ? 'Useful commands on your Mac:'
+      : 'Useful commands on your Pi:';
+    document.getElementById('cmd-status').textContent = isMac
+      ? 'launchctl list | grep picoclaw'
+      : 'systemctl --user status picoclaw';
+    document.getElementById('cmd-restart').textContent = isMac
+      ? 'launchctl unload ~/Library/LaunchAgents/com.picoclaw.agent.plist && launchctl load ~/Library/LaunchAgents/com.picoclaw.agent.plist'
+      : 'systemctl --user restart picoclaw';
+
     loadFinalChecklist();
   } else { showAlert('service-alert', 'error', '✗ ' + data.message); }
 }
