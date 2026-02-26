@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -24,8 +25,20 @@ func handleValidateLLM(w http.ResponseWriter, r *http.Request) {
 	apiKey := strings.TrimSpace(r.FormValue("api_key"))
 	model := strings.TrimSpace(r.FormValue("model"))
 
-	if provider == "" || apiKey == "" || model == "" {
-		errorResponse(w, "provider, api_key and model are required")
+	if provider == "" || model == "" {
+		errorResponse(w, "provider and model are required")
+		return
+	}
+
+	// No key supplied — fall back to whatever is already saved in config
+	if apiKey == "" {
+		cfg := readConfig()
+		if p, ok := cfg.Providers[provider]; ok {
+			apiKey, _ = p["api_key"].(string)
+		}
+	}
+	if apiKey == "" {
+		errorResponse(w, "No API key provided and none saved for this provider")
 		return
 	}
 
@@ -200,84 +213,19 @@ func handleInstallService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ok, msg := installService()
+	ok, msg := installSystemdService()
 	jsonResponse(w, map[string]interface{}{
 		"ok":      ok,
 		"message": msg,
 	})
 }
 
-func installService() (bool, string) {
+func installSystemdService() (bool, string) {
 	picocławPath, err := exec.LookPath("picoclaw")
 	if err != nil {
-		return false, "picoclaw not found in PATH — install PicoClaw first"
+		return false, "picoclaw not found in PATH"
 	}
 
-	osName, _ := runCommand("uname", "-s")
-	osName = strings.TrimSpace(osName)
-
-	if osName == "Darwin" {
-		return installLaunchdService(picocławPath)
-	}
-	return installSystemdService(picocławPath)
-}
-
-// macOS: launchd plist in ~/Library/LaunchAgents
-func installLaunchdService(picocławPath string) (bool, string) {
-	home, _ := os.UserHomeDir()
-	launchDir := filepath.Join(home, "Library", "LaunchAgents")
-	os.MkdirAll(launchDir, 0755)
-
-	logDir := filepath.Join(home, ".picoclaw", "logs")
-	os.MkdirAll(logDir, 0755)
-
-	plistContent := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key>
-  <string>com.picoclaw.agent</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>%s</string>
-    <string>gateway</string>
-  </array>
-  <key>RunAtLoad</key>
-  <true/>
-  <key>KeepAlive</key>
-  <true/>
-  <key>WorkingDirectory</key>
-  <string>%s</string>
-  <key>EnvironmentVariables</key>
-  <dict>
-    <key>HOME</key>
-    <string>%s</string>
-  </dict>
-  <key>StandardOutPath</key>
-  <string>%s/picoclaw.log</string>
-  <key>StandardErrorPath</key>
-  <string>%s/picoclaw.err</string>
-</dict>
-</plist>
-`, picocławPath, home, home, logDir, logDir)
-
-	plistPath := filepath.Join(launchDir, "com.picoclaw.agent.plist")
-	if err := os.WriteFile(plistPath, []byte(plistContent), 0644); err != nil {
-		return false, "Failed to write plist: " + err.Error()
-	}
-
-	// Unload first in case it was already loaded, ignore error
-	exec.Command("launchctl", "unload", plistPath).Run()
-
-	out, err := exec.Command("launchctl", "load", plistPath).CombinedOutput()
-	if err != nil {
-		return false, "launchctl load failed: " + strings.TrimSpace(string(out))
-	}
-	return true, "Service installed — PicoClaw will start automatically on login"
-}
-
-// Linux: systemd user service
-func installSystemdService(picocławPath string) (bool, string) {
 	home, _ := os.UserHomeDir()
 	serviceDir := filepath.Join(home, ".config", "systemd", "user")
 	os.MkdirAll(serviceDir, 0755)
@@ -310,14 +258,47 @@ WantedBy=default.target
 	}
 	for _, cmd := range commands {
 		if out, err := exec.Command(cmd[0], cmd[1:]...).CombinedOutput(); err != nil {
-			msg := strings.TrimSpace(string(out))
-			if msg == "" {
-				msg = "command failed: " + strings.Join(cmd, " ")
-			}
-			return false, msg
+			return false, strings.TrimSpace(string(out))
 		}
 	}
 	return true, "Service installed and started"
+}
+
+// ── Restart ──────────────────────────────────────────────────────────────────
+
+func handleRestartService(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var out string
+	var err error
+	if runtime.GOOS == "darwin" {
+		plistPath := os.ExpandEnv("$HOME/Library/LaunchAgents/com.picoclaw.agent.plist")
+		exec.Command("launchctl", "unload", plistPath).Run()
+		out, err = runCommand("launchctl", "load", plistPath)
+	} else {
+		out, err = runCommand("systemctl", "--user", "restart", "picoclaw")
+	}
+
+	if err != nil {
+		msg := strings.TrimSpace(out)
+		if msg == "" {
+			msg = "Restart failed: " + err.Error()
+		}
+		errorResponse(w, msg)
+		return
+	}
+	okResponse(w, "Agent restarted", nil)
+}
+
+// ── Local IP ─────────────────────────────────────────────────────────────────
+
+func handleLocalIP(w http.ResponseWriter, r *http.Request) {
+	jsonResponse(w, map[string]interface{}{
+		"ip": getLocalIP(),
+	})
 }
 
 // ── Health ────────────────────────────────────────────────────────────────────
@@ -434,8 +415,20 @@ func handleGetModels(w http.ResponseWriter, r *http.Request) {
 	provider := strings.TrimSpace(r.FormValue("provider"))
 	apiKey := strings.TrimSpace(r.FormValue("api_key"))
 
-	if provider != "openrouter" || apiKey == "" {
-		errorResponse(w, "provider and api_key required")
+	if provider != "openrouter" {
+		errorResponse(w, "provider required")
+		return
+	}
+
+	// No key supplied — fall back to whatever is already saved in config
+	if apiKey == "" {
+		cfg := readConfig()
+		if p, ok := cfg.Providers[provider]; ok {
+			apiKey, _ = p["api_key"].(string)
+		}
+	}
+	if apiKey == "" {
+		errorResponse(w, "No API key provided and none saved for this provider")
 		return
 	}
 

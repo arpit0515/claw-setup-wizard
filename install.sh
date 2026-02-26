@@ -30,7 +30,7 @@ if git -C "$REPO_DIR" rev-parse --is-inside-work-tree &>/dev/null; then
     log "✓ Already up to date (${AFTER:0:7})"
   fi
 else
-  log "⚠  Not a git repo — cloning fresh copy from $GITHUB_REPO..."
+  log "⚠  Not a git repo - cloning fresh copy from $GITHUB_REPO..."
   TMP_CLONE=$(mktemp -d)
   git clone "$GITHUB_REPO" "$TMP_CLONE" >> "$LOG_FILE" 2>&1
   cp -r "$TMP_CLONE/." "$REPO_DIR/"
@@ -82,7 +82,7 @@ EOF
       log "✓ Will launch automatically on next boot"
       ;;
     *)
-      log "⏭  Skipping startup autorun — run install.sh again anytime to set it up"
+      log "⏭  Skipping startup autorun - run install.sh again anytime to set it up"
       ;;
   esac
 fi
@@ -112,7 +112,7 @@ if command -v go &>/dev/null; then
   log "✓ Go already installed: $GO_INSTALLED"
 else
   log ""
-  log "⬇  Go not found — installing Go $GO_VERSION..."
+  log "⬇  Go not found - installing Go $GO_VERSION..."
 
   OS=$(uname -s)
   if [[ "$OS" == "Darwin" ]]; then
@@ -161,7 +161,7 @@ fi
 [ -z "$LOCAL_IP" ] && LOCAL_IP="localhost"
 log ""
 log "================================"
-log "✅ Ready — open in your browser:"
+log "✅ Ready - open in your browser:"
 log "   👉 http://$LOCAL_IP:3000"
 log "================================"
 log ""

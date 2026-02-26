@@ -34,6 +34,8 @@ func main() {
 	mux.HandleFunc("/api/health", handleHealth)
 	mux.HandleFunc("/api/install-picoclaw", handleInstallPicoclaw)
 	mux.HandleFunc("/api/models", handleGetModels)
+	mux.HandleFunc("/api/restart-service", handleRestartService)
+	mux.HandleFunc("/api/local-ip", handleLocalIP)
 
 	ip := getLocalIP()
 	fmt.Println(" *** claw-setup is running **** ")
