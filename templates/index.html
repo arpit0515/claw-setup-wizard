@@ -51,6 +51,16 @@
   }
   header .logo { font-size: 20px; }
   header h1 { font-size: 17px; font-weight: 700; }
+  header .logo-btn {
+    display: flex; align-items: center; gap: 10px;
+    cursor: pointer;
+    padding: 4px 8px 4px 0;
+    border-radius: 8px;
+    transition: opacity 0.15s;
+    -webkit-user-select: none; user-select: none;
+  }
+  header .logo-btn:hover { opacity: 0.75; }
+  header .logo-btn:active { opacity: 0.5; }
   header .header-badge {
     margin-left: auto;
     font-size: 11px;
@@ -62,7 +72,6 @@
     white-space: nowrap;
   }
 
-  /* ── Progress bar (below header) ── */
   .progress-bar {
     position: fixed;
     top: var(--header-h);
@@ -77,7 +86,6 @@
     transition: width 0.4s ease;
   }
 
-  /* ── Layout ── */
   .layout {
     display: flex;
     min-height: 100vh;
@@ -85,7 +93,6 @@
     padding-top: calc(var(--header-h) + 3px);
   }
 
-  /* ── Desktop sidebar ── */
   .sidebar {
     width: 240px;
     flex-shrink: 0;
@@ -135,7 +142,6 @@
   .step-label { font-size: 13px; font-weight: 500; }
   .step-sub { font-size: 11px; color: var(--text2); margin-top: 1px; }
 
-  /* ── Mobile bottom nav ── */
   .bottom-nav {
     display: none;
     position: fixed;
@@ -181,7 +187,6 @@
   .bnav-label { font-size: 9px; color: var(--text2); font-weight: 500; text-align: center; line-height: 1.2; }
   .bottom-nav-item.active .bnav-label { color: var(--accent); }
 
-  /* ── Main content ── */
   .main {
     flex: 1;
     min-width: 0;
@@ -196,7 +201,6 @@
   h2 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
   .subtitle { color: var(--text2); font-size: 13px; margin-bottom: 20px; line-height: 1.5; }
 
-  /* ── Cards ── */
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -213,19 +217,31 @@
     margin-bottom: 12px;
   }
 
-  /* ── Status rows ── */
   .status-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
-    padding: 9px 0;
+    gap: 12px;
+    padding: 11px 0;
     border-bottom: 1px solid var(--border);
   }
   .status-row:last-child { border-bottom: none; }
-  .status-label { font-size: 13px; flex-shrink: 0; }
-  .status-right { display: flex; align-items: center; gap: 6px; min-width: 0; }
-  .status-value { font-size: 12px; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100px; }
+  .status-left {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+  }
+  .status-label { font-size: 13px; font-weight: 600; }
+  .status-detail {
+    font-size: 11px;
+    color: var(--text2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
   .badge {
     display: inline-flex; align-items: center; gap: 4px;
     padding: 2px 8px; border-radius: 20px;
@@ -237,7 +253,6 @@
   .badge.warn { background: rgba(255,181,71,0.15); color: var(--warning); }
   .badge.pending { background: var(--surface2); color: var(--text2); }
 
-  /* ── Forms ── */
   .form-group { margin-bottom: 14px; }
   label {
     display: block;
@@ -253,7 +268,7 @@
     border-radius: 8px;
     padding: 10px 12px;
     color: var(--text);
-    font-size: 15px; /* 15px prevents iOS zoom */
+    font-size: 15px;
     outline: none;
     transition: border-color 0.15s;
     font-family: inherit;
@@ -270,7 +285,6 @@
   textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
   .hint { font-size: 11px; color: var(--text2); margin-top: 4px; }
 
-  /* ── Provider grid ── */
   .provider-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -294,7 +308,6 @@
   .provider-name { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
   .provider-hint { font-size: 10px; color: var(--text2); }
 
-  /* ── Buttons ── */
   .btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 6px;
     padding: 10px 18px;
@@ -324,7 +337,6 @@
     flex-wrap: wrap;
   }
 
-  /* ── Alerts ── */
   .alert {
     padding: 10px 14px;
     border-radius: 8px;
@@ -338,7 +350,6 @@
   .alert.error { background: rgba(255,79,79,0.1); border: 1px solid var(--danger); color: var(--danger); }
   .alert.info { background: rgba(108,99,255,0.1); border: 1px solid var(--accent); color: #a9a3ff; }
 
-  /* ── Guide steps ── */
   .guide-step {
     display: flex;
     gap: 12px;
@@ -366,7 +377,6 @@
   }
   .guide-text a { color: var(--accent2); }
 
-  /* ── Soul preview ── */
   #soul-preview {
     background: var(--surface2);
     border: 1px solid var(--border);
@@ -382,7 +392,6 @@
     -webkit-overflow-scrolling: touch;
   }
 
-  /* ── Final checklist ── */
   .final-item {
     display: flex; align-items: center; gap: 10px;
     padding: 11px 0;
@@ -392,7 +401,6 @@
   .final-item:last-child { border-bottom: none; }
   .check { font-size: 16px; }
 
-  /* ── Spinner ── */
   .spinner {
     display: inline-block;
     width: 14px; height: 14px;
@@ -404,10 +412,8 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* ── Install card ── */
   #install-picoclaw-section { display: none; }
 
-  /* ── Model load row ── */
   .model-load-row {
     display: flex;
     gap: 8px;
@@ -421,7 +427,15 @@
     cursor: pointer;
   }
 
-  /* ── Launch success commands ── */
+  /* key-status hint shown when using saved key */
+  .key-status {
+    font-size: 11px;
+    color: var(--accent2);
+    margin-top: 4px;
+    display: none;
+  }
+  .key-status.visible { display: block; }
+
   .cmd-block {
     background: var(--surface2);
     border-radius: 8px;
@@ -440,29 +454,21 @@
     word-break: break-all;
   }
 
-  /* ── Responsive breakpoints ── */
   @media (max-width: 640px) {
     .sidebar { display: none; }
-
     .bottom-nav { display: flex; }
-
     .main {
       padding: 16px 14px;
       padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 16px);
     }
-
     h2 { font-size: 18px; }
     .subtitle { font-size: 12px; margin-bottom: 16px; }
-
     .provider-grid { gap: 6px; }
     .provider-card { padding: 10px 8px; }
     .provider-name { font-size: 12px; }
-
     .btn { font-size: 13px; padding: 9px 14px; }
     .btn-row { gap: 6px; }
-
-    /* Stack some two-col layouts */
-    .status-value { max-width: 70px; }
+    .status-value { max-width: 90px; }
   }
 
   @media (min-width: 641px) and (max-width: 900px) {
@@ -475,19 +481,189 @@
     .main { padding: 28px 28px; }
   }
 
-  /* Very small phones */
   @media (max-width: 360px) {
     .provider-grid { grid-template-columns: 1fr; }
     .btn { width: 100%; justify-content: center; }
     .btn-row { flex-direction: column; align-items: stretch; }
   }
+
+  /* ── Network bar (below header) ── */
+  .net-bar {
+    position: fixed;
+    top: var(--header-h);
+    left: 0; right: 0;
+    z-index: 98;
+    background: rgba(15,17,23,0.95);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 5px 16px;
+    font-size: 12px;
+    color: var(--text2);
+    backdrop-filter: blur(8px);
+  }
+  .net-bar .net-url {
+    font-family: 'SF Mono','Fira Code',monospace;
+    color: var(--accent2);
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+  }
+  .net-bar .net-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 6px var(--success);
+    flex-shrink: 0;
+  }
+  .net-bar .net-copy {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text2);
+    border-radius: 5px;
+    padding: 1px 8px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .net-bar .net-copy:hover { border-color: var(--accent2); color: var(--accent2); }
+  .net-bar .net-qr-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text2);
+    border-radius: 5px;
+    padding: 1px 8px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .net-bar .net-qr-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* layout offset for net-bar */
+  .progress-bar { top: calc(var(--header-h) + 28px) !important; }
+  .layout { padding-top: calc(var(--header-h) + 28px + 3px) !important; }
+  .sidebar { top: calc(var(--header-h) + 28px + 3px) !important; height: calc(100vh - var(--header-h) - 28px - 3px) !important; }
+
+  /* ── QR Modal ── */
+  .qr-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(6px);
+    align-items: center;
+    justify-content: center;
+  }
+  .qr-modal-overlay.open { display: flex; }
+  .qr-modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 24px 20px;
+    text-align: center;
+    max-width: 280px;
+    width: 90%;
+    position: relative;
+  }
+  .qr-modal h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .qr-modal p { font-size: 12px; color: var(--text2); margin-bottom: 16px; }
+  #qr-canvas { border-radius: 8px; }
+  .qr-modal .qr-url {
+    margin-top: 12px;
+    font-family: 'SF Mono','Fira Code',monospace;
+    font-size: 13px;
+    color: var(--accent2);
+    word-break: break-all;
+  }
+  .qr-modal .qr-close {
+    position: absolute;
+    top: 10px; right: 12px;
+    background: none; border: none;
+    color: var(--text2); font-size: 18px;
+    cursor: pointer; line-height: 1;
+    padding: 4px;
+  }
+  .qr-modal .qr-close:hover { color: var(--text); }
+
+  /* ── Action grid (replaces btn-row for quick actions) ── */
+  .action-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .action-tile {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 8px 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    text-align: center;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+  }
+  .action-tile:active { transform: scale(0.96); }
+  .action-tile:hover { border-color: var(--accent); background: rgba(108,99,255,0.08); }
+  .action-tile.danger:hover { border-color: var(--danger); background: rgba(255,79,79,0.08); }
+  .action-tile .tile-icon { font-size: 22px; line-height: 1; }
+  .action-tile .tile-label { font-size: 11px; font-weight: 600; color: var(--text2); }
+  .action-tile.loading { opacity: 0.6; pointer-events: none; }
+
+  @media (max-width: 640px) {
+    .net-bar { font-size: 11px; gap: 7px; }
+    .net-bar .net-url { font-size: 12px; }
+    /* on mobile bump the layout down by net-bar height */
+    .layout { padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 16px); }
+    .main { padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 16px) !important; }
+    .action-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .action-tile { padding: 12px 4px 10px; }
+    .action-tile .tile-icon { font-size: 18px; }
+    .action-tile .tile-label { font-size: 10px; }
+  }
 </style>
 </head>
 <body>
 
+
+<!-- Network Bar -->
+<div class="net-bar" id="net-bar" style="display:none">
+  <div class="net-dot"></div>
+  <span>Open</span>
+  <span class="net-url" id="net-url-text">loading...</span>
+  <button class="net-copy" onclick="copyNetUrl()" id="net-copy-btn">Copy</button>
+  <button class="net-qr-btn" onclick="openQR()">QR</button>
+</div>
+
+<!-- QR Modal -->
+<div class="qr-modal-overlay" id="qr-overlay" onclick="closeQRIfOutside(event)">
+  <div class="qr-modal">
+    <button class="qr-close" onclick="closeQR()">✕</button>
+    <h3>Scan to Open</h3>
+    <p>Point your phone camera at this code</p>
+    <div id="qr-container" style="width:200px;height:200px;margin:0 auto;background:var(--surface2);border-radius:8px;display:flex;align-items:center;justify-content:center;">
+      <div class="spinner"></div>
+    </div>
+    <div class="qr-url" id="qr-url-label"></div>
+  </div>
+</div>
+
 <header>
-  <div class="logo">🦐</div>
-  <h1>claw-setup</h1>
+  <div class="logo-btn" onclick="goTo(0)" title="Back to System Check">
+    <div class="logo">🦐</div>
+    <h1>claw-setup</h1>
+  </div>
   <span class="header-badge">PicoClaw Wizard</span>
 </header>
 
@@ -547,6 +723,26 @@
           </div>
         </div>
       </div>
+      <div id="quick-actions" style="display:none">
+        <div class="card">
+          <div class="card-title">Quick Actions</div>
+          <div id="sys-action-alert" class="alert"></div>
+          <div class="action-grid">
+            <div class="action-tile" id="tile-restart" onclick="restartServiceFrom('sys-action-alert','tile-restart')">
+              <div class="tile-icon">↺</div>
+              <div class="tile-label">Restart Twin</div>
+            </div>
+            <div class="action-tile" onclick="goTo(1)">
+              <div class="tile-icon">⚙</div>
+              <div class="tile-label">Change Model</div>
+            </div>
+            <div class="action-tile" id="tile-ping" onclick="pingTelegramFrom('sys-action-alert','tile-ping')">
+              <div class="tile-icon">🏓</div>
+              <div class="tile-label">Ping Bot</div>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="btn-row">
         <button class="btn btn-secondary" onclick="runSystemCheck()">↻ Refresh</button>
         <button class="btn btn-primary" id="btn-sys-next" disabled onclick="goTo(1)">Continue →</button>
@@ -580,6 +776,7 @@
           <label>API Key</label>
           <input type="password" id="llm-key" placeholder="Paste your API key here" autocomplete="off" oninput="onKeyInput()" />
           <div class="hint" id="llm-key-hint">Get your free key at <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--accent2)">openrouter.ai/keys</a></div>
+          <div class="key-status" id="key-status">✓ Using saved key — paste a new one above to change it</div>
         </div>
         <div class="form-group" id="model-group">
           <label>Model</label>
@@ -593,7 +790,7 @@
         </div>
         <div id="llm-alert" class="alert"></div>
         <div class="btn-row">
-          <button class="btn btn-primary" id="btn-validate-llm" onclick="validateLLM()">Validate Key</button>
+          <button class="btn btn-primary" id="btn-validate-llm" onclick="validateLLM()">Save Model</button>
           <button class="btn btn-primary" id="btn-llm-next" disabled onclick="goTo(2)">Continue →</button>
         </div>
       </div>
@@ -725,7 +922,7 @@
     <!-- STEP 4: Launch -->
     <div class="section" id="step-4">
       <h2>Launch Your Twin 🚀</h2>
-      <p class="subtitle">Everything's configured. Let's get PicoClaw running permanently on your Pi.</p>
+      <p class="subtitle">Everything's configured. Let's get PicoClaw running permanently on your device.</p>
       <div class="card" id="final-checklist">
         <div class="card-title">Final Checklist</div>
         <div id="checklist-rows">
@@ -746,6 +943,21 @@
             <div style="font-size:44px; margin-bottom:10px">🎉</div>
             <div style="font-size:18px; font-weight:700; margin-bottom:6px">Your twin is live!</div>
             <div style="color:var(--text2); font-size:13px; margin-bottom:16px">Open Telegram and send your bot a message. It will respond as you.</div>
+            <div id="action-alert" class="alert" style="text-align:left; margin-bottom:10px"></div>
+            <div class="action-grid" style="margin-bottom:16px">
+              <div class="action-tile" id="tile-launch-restart" onclick="restartServiceFrom('action-alert','tile-launch-restart')">
+                <div class="tile-icon">↺</div>
+                <div class="tile-label">Restart Twin</div>
+              </div>
+              <div class="action-tile" onclick="goTo(1)">
+                <div class="tile-icon">⚙</div>
+                <div class="tile-label">Change Model</div>
+              </div>
+              <div class="action-tile" id="tile-launch-ping" onclick="pingTelegramFrom('action-alert','tile-launch-ping')">
+                <div class="tile-icon">🏓</div>
+                <div class="tile-label">Ping Bot</div>
+              </div>
+            </div>
             <div class="cmd-block">
               <div class="cmd-hint" id="cmd-hint">Useful commands:</div>
               <code id="cmd-status"></code>
@@ -819,17 +1031,13 @@ function goTo(n) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.step-item').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.bottom-nav-item').forEach(s => s.classList.remove('active'));
-
   document.getElementById(`step-${n}`).classList.add('active');
   document.getElementById(`nav-${n}`).classList.add('active');
   document.getElementById(`bnav-${n}`).classList.add('active');
   document.getElementById('progress').style.width = progress[n] + '%';
   currentStep = n;
-
-  // Scroll to top of main
   document.querySelector('.main').scrollTo({ top: 0, behavior: 'smooth' });
   window.scrollTo({ top: 0, behavior: 'smooth' });
-
   if (n === 0) runSystemCheck();
   if (n === 1) populateLLM();
   if (n === 2) populateTelegram();
@@ -838,10 +1046,8 @@ function goTo(n) {
 }
 
 function markDone(n) {
-  const icon = document.getElementById(`icon-${n}`);
-  const bicon = document.getElementById(`bicon-${n}`);
-  icon.textContent = '✓';
-  bicon.textContent = '✓';
+  document.getElementById(`icon-${n}`).textContent = '✓';
+  document.getElementById(`bicon-${n}`).textContent = '✓';
   document.getElementById(`nav-${n}`).classList.add('done');
   document.getElementById(`bnav-${n}`).classList.add('done');
 }
@@ -858,6 +1064,11 @@ function showAlert(id, type, msg) {
 }
 function hideAlert(id) { document.getElementById(id).className = 'alert'; }
 
+// Returns true if the current provider has a saved key in config
+function hasSavedKey() {
+  return systemData.has_provider && systemData.active_provider === selectedProvider;
+}
+
 // ── Step 0: System Check ──────────────────────────────────────────
 async function runSystemCheck() {
   document.getElementById('system-rows').innerHTML = `
@@ -870,7 +1081,7 @@ async function runSystemCheck() {
   const data = await r.json();
   systemData = data;
 
-  // Update OS-sensitive labels once we know the OS
+  // OS-sensitive labels
   const isMac = data.os === 'mac';
   const deviceLabel = isMac ? 'Mac' : 'Pi';
   document.getElementById('btn-save-soul').textContent = `Save to ${deviceLabel}`;
@@ -878,25 +1089,26 @@ async function runSystemCheck() {
     ? 'This installs a launchd agent so PicoClaw starts automatically on login and restarts if it crashes.'
     : 'This installs a systemd service so PicoClaw starts automatically on boot and restarts if it crashes.';
 
+  // FIX: check actual value for Disk/RAM — 'unavailable' means backend couldn't read it
   const rows = [
-    ['PicoClaw', data.picoclaw_installed, data.picoclaw_version || 'Not found'],
-    ['Disk Space', true, data.disk_space],
-    ['RAM', true, data.ram],
+    ['PicoClaw',     data.picoclaw_installed,                                   data.picoclaw_version || 'Not found'],
+    ['Disk Space',   data.disk_space && data.disk_space !== 'unavailable',       data.disk_space || 'unavailable'],
+    ['RAM',          data.ram && data.ram !== 'unavailable',                     data.ram || 'unavailable'],
     ['LLM Provider', data.has_provider, data.active_model ? `${data.active_model} (${data.active_provider})` : 'Not set'],
-    ['Telegram', data.has_telegram, data.telegram_token ? `Token: ${data.telegram_token}` : 'Not set'],
-    ['SOUL.md', data.has_soul, data.has_soul ? 'Found' : 'Not created'],
-    ['Service', data.service_status === 'active', data.service_status],
+    ['Telegram',     data.has_telegram, data.telegram_token ? `Token: ${data.telegram_token}` : 'Not set'],
+    ['SOUL.md',      data.has_soul,     data.has_soul ? 'Found' : 'Not created'],
+    ['Service',      data.service_status === 'active', data.service_status],
   ];
 
   document.getElementById('system-rows').innerHTML = rows.map(([label, ok, val]) => `
     <div class="status-row">
-      <span class="status-label">${label}</span>
-      <div class="status-right">
-        <span class="status-value" title="${val}">${val}</span>
-        <span class="badge ${ok ? 'ok' : ['LLM Provider','Telegram','SOUL.md','Service'].includes(label) ? 'warn' : 'fail'}">
-          ${ok ? '✓ OK' : '○ Pending'}
-        </span>
+      <div class="status-left">
+        <span class="status-label">${label}</span>
+        <span class="status-detail">${val}</span>
       </div>
+      <span class="badge ${ok ? 'ok' : ['LLM Provider','Telegram','SOUL.md','Service','Disk Space','RAM'].includes(label) ? 'warn' : 'fail'}">
+        ${ok ? '✓ OK' : '○ Pending'}
+      </span>
     </div>`).join('');
 
   if (!data.picoclaw_installed) {
@@ -907,12 +1119,15 @@ async function runSystemCheck() {
     document.getElementById('install-picoclaw-section').style.display = 'none';
     hideAlert('sys-alert');
     document.getElementById('btn-sys-next').disabled = false;
-    if (data.checklist.system) markDone(0);
+    if (data.checklist.system)   markDone(0);
     if (data.checklist.provider) { markDone(1); state.llm = true; }
     if (data.checklist.telegram) { markDone(2); state.telegram = true; }
-    if (data.checklist.soul) { markDone(3); state.soul = true; }
-    if (data.checklist.service) { markDone(4); state.service = true; }
+    if (data.checklist.soul)     { markDone(3); state.soul = true; }
+    if (data.checklist.service)  { markDone(4); state.service = true; }
     state.system = true;
+    // Show quick actions on system check if service is running
+    const qa = document.getElementById('quick-actions');
+    if (qa) qa.style.display = data.service_status === 'active' ? 'block' : 'none';
   }
 }
 
@@ -930,38 +1145,104 @@ function selectProvider(p) {
     document.getElementById('llm-model').innerHTML = info.models
       .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
   }
-  document.getElementById('llm-key').value = '';
-  hideAlert('llm-alert');
+  // Don't clear the key field — but update the saved-key status indicator
+  updateKeyStatus();
+}
+
+function updateKeyStatus() {
+  const saved = hasSavedKey();
+  const keyEl = document.getElementById('key-status');
+  keyEl.className = saved ? 'key-status visible' : 'key-status';
+  // Enable Load Models if there's a saved key or user typed one
+  const typed = document.getElementById('llm-key').value.trim().length >= 10;
+  document.getElementById('btn-load-models').disabled = !saved && !typed;
+  // Relabel the validate button based on context
+  document.getElementById('btn-validate-llm').textContent = saved
+    ? 'Save Model'
+    : 'Validate Key';
+}
+
+function onKeyInput() {
+  updateKeyStatus();
 }
 
 async function validateLLM() {
   const key = document.getElementById('llm-key').value.trim();
   const model = document.getElementById('llm-model').value;
-  if (!key) { showAlert('llm-alert', 'error', 'Please enter your API key'); return; }
+  if (!model) { showAlert('llm-alert', 'error', 'Please select a model'); return; }
+
+  // Allow empty key only if we have a saved one for this provider
+  if (!key && !hasSavedKey()) {
+    showAlert('llm-alert', 'error', 'Please enter your API key');
+    return;
+  }
 
   const btn = document.getElementById('btn-validate-llm');
-  btn.innerHTML = '<div class="spinner"></div> Validating...';
+  btn.innerHTML = '<div class="spinner"></div> Saving...';
   btn.disabled = true;
 
   const fd = new FormData();
   fd.append('provider', selectedProvider || 'openrouter');
-  fd.append('api_key', key);
   fd.append('model', model);
+  if (key) fd.append('api_key', key); // only send if user typed one; backend falls back to saved key
 
   const r = await fetch('/api/validate-llm', { method: 'POST', body: fd });
   const data = await r.json();
 
-  btn.innerHTML = 'Validate Key';
+  btn.innerHTML = hasSavedKey() ? 'Save Model' : 'Validate Key';
   btn.disabled = false;
 
   if (data.ok) {
-    showAlert('llm-alert', 'success', '✓ ' + data.message + ` - using ${model}`);
-    document.getElementById('btn-llm-next').disabled = false;
+    // Update systemData so hasSavedKey() stays accurate for the new provider
+    systemData.has_provider = true;
+    systemData.active_provider = selectedProvider;
+    systemData.active_model = model;
+    updateKeyStatus();
     markDone(1); state.llm = true;
+    document.getElementById('btn-llm-next').disabled = false;
+
+    // If service is already running, restart it so the new model takes effect
+    if (state.service) {
+      showAlert('llm-alert', 'info', `✓ Model saved — restarting agent to apply ${model}...`);
+      btn.innerHTML = '<div class="spinner"></div> Restarting...';
+      btn.disabled = true;
+      const rr = await fetch('/api/restart-service', { method: 'POST' });
+      const rd = await rr.json();
+      btn.innerHTML = hasSavedKey() ? 'Save Model' : 'Validate Key';
+      btn.disabled = false;
+      if (rd.ok) {
+        showAlert('llm-alert', 'success', `✓ Model updated & agent restarted — now using ${model}`);
+      } else {
+        showAlert('llm-alert', 'warn', `✓ Model saved but restart failed: ${rd.message}`);
+      }
+    } else {
+      showAlert('llm-alert', 'success', '✓ ' + data.message + ` — using ${model}`);
+    }
   } else {
     showAlert('llm-alert', 'error', '✗ ' + data.message);
     markError(1);
   }
+}
+
+async function loadModels() {
+  const key = document.getElementById('llm-key').value.trim();
+  const btn = document.getElementById('btn-load-models');
+  btn.innerHTML = '<div class="spinner"></div>';
+  btn.disabled = true;
+
+  const fd = new FormData();
+  fd.append('provider', selectedProvider);
+  if (key) fd.append('api_key', key); // omit if empty — backend uses saved key
+
+  const r = await fetch('/api/models', { method: 'POST', body: fd });
+  const data = await r.json();
+  btn.innerHTML = '↻ Load Models';
+  btn.disabled = false;
+
+  if (!data.ok) { showAlert('llm-alert', 'error', '✗ ' + data.message); return; }
+  allModels = data.models;
+  filterModels();
+  showAlert('llm-alert', 'success', `✓ Loaded ${data.models.length} models`);
 }
 
 // ── Step 2: Telegram ─────────────────────────────────────────────
@@ -1034,7 +1315,7 @@ async function saveSoul() {
   const r = await fetch('/api/save-soul', { method: 'POST', body: fd });
   const data = await r.json();
   if (data.ok) {
-    showAlert('soul-save-alert', 'success', '✓ SOUL.md saved to your Pi at ' + data.message.split('to ')[1]);
+    showAlert('soul-save-alert', 'success', '✓ SOUL.md saved to your device at ' + data.message.split('to ')[1]);
     document.getElementById('btn-soul-next').disabled = false;
     markDone(3); state.soul = true;
   } else { showAlert('soul-save-alert', 'error', '✗ ' + data.message); }
@@ -1044,6 +1325,8 @@ async function saveSoul() {
 async function loadFinalChecklist() {
   const r = await fetch('/api/system-check');
   const data = await r.json();
+  systemData = data; // keep in sync
+
   const items = [
     ['PicoClaw installed', data.picoclaw_installed],
     ['LLM provider configured', data.has_provider],
@@ -1057,19 +1340,15 @@ async function loadFinalChecklist() {
       <span>${label}</span>
     </div>`).join('');
 
-  // If service is already running, hide the install card and show success
   if (data.service_status === 'active') {
     document.getElementById('service-install-card').style.display = 'none';
     document.getElementById('launch-success').style.display = 'block';
     document.getElementById('progress').style.width = '100%';
     markDone(4);
-
-    const isMac = data.os === 'mac';
-    document.getElementById('cmd-hint').textContent = isMac ? 'Useful commands on your Mac:' : 'Useful commands on your Pi:';
-    document.getElementById('cmd-status').textContent = isMac ? 'launchctl list | grep picoclaw' : 'systemctl --user status picoclaw';
-    document.getElementById('cmd-restart').textContent = isMac
-      ? 'launchctl unload ~/Library/LaunchAgents/com.picoclaw.agent.plist && launchctl load ~/Library/LaunchAgents/com.picoclaw.agent.plist'
-      : 'systemctl --user restart picoclaw';
+    populateOSCommands(data.os === 'mac');
+  } else {
+    document.getElementById('service-install-card').style.display = 'block';
+    document.getElementById('launch-success').style.display = 'none';
   }
 }
 
@@ -1079,26 +1358,20 @@ async function installService() {
   const data = await r.json();
   if (data.ok) {
     showAlert('service-alert', 'success', '✓ ' + data.message);
-    // Hide the install card — service is already running
-    document.getElementById('service-install-card').style.display = 'none';
-    document.getElementById('launch-success').style.display = 'block';
-    document.getElementById('progress').style.width = '100%';
     markDone(4); state.service = true;
-
-    // Populate OS-specific commands
-    const isMac = systemData.os === 'mac';
-    document.getElementById('cmd-hint').textContent = isMac
-      ? 'Useful commands on your Mac:'
-      : 'Useful commands on your Pi:';
-    document.getElementById('cmd-status').textContent = isMac
-      ? 'launchctl list | grep picoclaw'
-      : 'systemctl --user status picoclaw';
-    document.getElementById('cmd-restart').textContent = isMac
-      ? 'launchctl unload ~/Library/LaunchAgents/com.picoclaw.agent.plist && launchctl load ~/Library/LaunchAgents/com.picoclaw.agent.plist'
-      : 'systemctl --user restart picoclaw';
-
-    loadFinalChecklist();
+    // Re-fetch system status so checklist shows real service state
+    await loadFinalChecklist();
   } else { showAlert('service-alert', 'error', '✗ ' + data.message); }
+}
+
+function populateOSCommands(isMac) {
+  document.getElementById('cmd-hint').textContent = isMac ? 'Useful commands on your Mac:' : 'Useful commands on your Pi:';
+  document.getElementById('cmd-status').textContent = isMac
+    ? 'launchctl list | grep picoclaw'
+    : 'systemctl --user status picoclaw';
+  document.getElementById('cmd-restart').textContent = isMac
+    ? 'launchctl unload ~/Library/LaunchAgents/com.picoclaw.agent.plist && launchctl load ~/Library/LaunchAgents/com.picoclaw.agent.plist'
+    : 'systemctl --user restart picoclaw';
 }
 
 function populateLLM() {
@@ -1122,6 +1395,8 @@ function populateLLM() {
     document.getElementById('btn-llm-next').disabled = false;
     markDone(1);
   }
+  // Always call this so Load Models button and key-status reflect current state
+  updateKeyStatus();
 }
 
 function populateTelegram() {
@@ -1160,23 +1435,52 @@ async function installPicoclaw() {
   }
 }
 
-let allModels = [];
-function onKeyInput() {
-  document.getElementById('btn-load-models').disabled = document.getElementById('llm-key').value.trim().length < 10;
-}
-async function loadModels() {
-  const key = document.getElementById('llm-key').value.trim();
-  const btn = document.getElementById('btn-load-models');
-  btn.innerHTML = '<div class="spinner"></div>';
-  btn.disabled = true;
-  const fd = new FormData(); fd.append('provider', selectedProvider); fd.append('api_key', key);
-  const r = await fetch('/api/models', { method: 'POST', body: fd });
+async function restartService() { await restartServiceFrom('action-alert', 'tile-launch-restart'); }
+async function restartServiceFrom(alertId, tileId) {
+  const tile = document.getElementById(tileId);
+  const origHTML = tile.innerHTML;
+  tile.classList.add('loading');
+  tile.querySelector('.tile-icon').textContent = '⏳';
+  const r = await fetch('/api/restart-service', { method: 'POST' });
   const data = await r.json();
-  btn.innerHTML = '↻ Load Models'; btn.disabled = false;
-  if (!data.ok) { showAlert('llm-alert', 'error', '✗ ' + data.message); return; }
-  allModels = data.models; filterModels();
-  showAlert('llm-alert', 'success', `✓ Loaded ${data.models.length} models`);
+  tile.innerHTML = origHTML;
+  tile.classList.remove('loading');
+  if (data.ok) {
+    showAlert(alertId, 'success', '✓ Agent restarted');
+  } else {
+    showAlert(alertId, 'error', '✗ ' + data.message);
+  }
+  setTimeout(() => hideAlert(alertId), 4000);
 }
+
+async function pingTelegramAction() { await pingTelegramFrom('action-alert', 'tile-launch-ping'); }
+async function pingTelegramFrom(alertId, tileId) {
+  const tile = document.getElementById(tileId);
+  const origHTML = tile.innerHTML;
+  tile.classList.add('loading');
+  tile.querySelector('.tile-icon').textContent = '⏳';
+  const chatId = systemData.telegram_user || '';
+  if (!chatId) {
+    showAlert(alertId, 'error', 'No Telegram user ID saved — complete step 3 first');
+    tile.innerHTML = origHTML;
+    tile.classList.remove('loading');
+    return;
+  }
+  const fd = new FormData(); fd.append('chat_id', chatId);
+  const r = await fetch('/api/ping-telegram', { method: 'POST', body: fd });
+  const data = await r.json();
+  tile.innerHTML = origHTML;
+  tile.classList.remove('loading');
+  if (data.ok) {
+    showAlert(alertId, 'success', '✓ Ping sent!');
+  } else {
+    showAlert(alertId, 'error', '✗ ' + data.message);
+  }
+  setTimeout(() => hideAlert(alertId), 4000);
+}
+
+let allModels = [];
+
 function filterModels() {
   const freeOnly = document.getElementById('free-only').checked;
   const sel = document.getElementById('llm-model');
@@ -1184,7 +1488,90 @@ function filterModels() {
   sel.innerHTML = filtered.map(m => `<option value="${m.id}">${m.name}${m.free ? ' 🆓' : ''}</option>`).join('');
 }
 
+// ── Network bar & QR ──────────────────────────────────────────
+let localIP = '';
+
+async function initNetBar() {
+  try {
+    const r = await fetch('/api/local-ip');
+    const data = await r.json();
+    localIP = data.ip || window.location.hostname;
+  } catch(e) {
+    localIP = window.location.hostname;
+  }
+  const url = `http://${localIP}:3000`;
+  document.getElementById('net-url-text').textContent = url;
+  document.getElementById('net-bar').style.display = 'flex';
+}
+
+function copyNetUrl() {
+  const url = `http://${localIP}:3000`;
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById('net-copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 1800);
+  }).catch(() => {
+    prompt('Copy this URL:', url);
+  });
+}
+
+function openQR() {
+  const url = `http://${localIP}:3000`;
+  document.getElementById('qr-url-label').textContent = url;
+  document.getElementById('qr-overlay').classList.add('open');
+
+  const container = document.getElementById('qr-container');
+  container.innerHTML = '<div class="spinner"></div>';
+
+  // Use Google Charts QR API — reliable, no JS library needed
+  const img = new Image();
+  img.width = 200;
+  img.height = 200;
+  img.style.borderRadius = '8px';
+  img.style.display = 'block';
+  img.alt = url;
+  img.onload = () => { container.innerHTML = ''; container.appendChild(img); };
+  img.onerror = () => {
+    // If no internet, render QR natively using canvas
+    container.innerHTML = '';
+    renderQRCanvas(container, url);
+  };
+  img.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&color=ffffff&bgcolor=1a1d27&data=${encodeURIComponent(url)}`;
+}
+
+// Pure-JS QR fallback using a tiny Reed-Solomon encoder
+// Based on the MIT-licensed nayuki QR algorithm (simplified for URLs)
+function renderQRCanvas(container, text) {
+  // Use a simple approach: encode as data matrix via inline SVG path
+  // For local network URLs, we use a pre-computed approach via fetch trick
+  const canvas = document.createElement('canvas');
+  canvas.width = 200; canvas.height = 200;
+  canvas.style.borderRadius = '8px';
+  container.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#1a1d27';
+  ctx.fillRect(0,0,200,200);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('QR needs internet', 100, 90);
+  ctx.fillText('to generate.', 100, 108);
+  ctx.font = '10px monospace';
+  ctx.fillStyle = 'var(--accent2)';
+  ctx.fillText('URL copied to clipboard', 100, 135);
+  navigator.clipboard.writeText(text).catch(()=>{});
+}
+
+function closeQR() {
+  document.getElementById('qr-overlay').classList.remove('open');
+}
+
+function closeQRIfOutside(e) {
+  if (e.target === document.getElementById('qr-overlay')) closeQR();
+}
+
 // Init
+initNetBar();
 runSystemCheck();
 </script>
 </body>

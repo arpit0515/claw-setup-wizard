@@ -2,16 +2,18 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	)
 
 // SystemStatus that holds everything we check on the Pi
 type SystemStatus struct {
-	OS              string `json:"os"`
 	PicoclawInstalled	bool	`json:"picoclaw_installed"`
 	PicoclawVersion	string	`json:"picoclaw_version"`
 	DiskSpace	string	`json:"disk_space"`
@@ -25,6 +27,7 @@ type SystemStatus struct {
 	TelegramToken   string `json:"telegram_token"`
 	TelegramUser    string `json:"telegram_user"`
 	ServiceStatus	string	`json:"service_status"`
+	OS		string	`json:"os"`
 	Checklist	struct	{
 		System	bool	`json:"system"`
 		Provider	bool	`json:"provider"`
@@ -42,16 +45,6 @@ func handleSystemCheck(w http.ResponseWriter, r *http.Request) {
 
 func buildSystemStatus() SystemStatus {
 	var s SystemStatus
-
-	// Detect OS
-	osName, _ := runCommand("uname", "-s")
-	osName = strings.TrimSpace(osName)
-	if osName == "Darwin" {
-		s.OS = "mac"
-	} else {
-		s.OS = "linux"
-	}
-
 	// Check PicoClaw
 	path, err := exec.LookPath("picoclaw")
 	if err == nil && path != "" {
@@ -75,17 +68,8 @@ func buildSystemStatus() SystemStatus {
 		}
 	}
 
-	// RAM
-	out, err = runCommand("free", "-h")
-	if err == nil {
-		lines := strings.Split(out, "\n")
-		if len(lines) >= 2{
-			fields := strings.Fields(lines[1])
-			if len(fields) >=7 {
-				s.RAM = fields[6] + " free of " + fields[1]
-			}
-		}
-	}
+	// RAM — OS-aware
+	s.RAM = getRAM()
 
 	// Config
 	configPath := getConfigPath()
@@ -135,21 +119,14 @@ func buildSystemStatus() SystemStatus {
 		s.HasSoul = true
 	}
 
-	// Service status — launchctl on macOS, systemctl on Linux
-	if s.OS == "mac" {
-		out, err = runCommand("launchctl", "list", "com.picoclaw.agent")
-		if err == nil && !strings.Contains(out, "Could not find service") {
-			s.ServiceStatus = "active"
-		} else {
-			s.ServiceStatus = "inactive"
-		}
+	// Service status — OS-aware
+	s.ServiceStatus = getServiceStatus()
+
+	// OS
+	if runtime.GOOS == "darwin" {
+		s.OS = "mac"
 	} else {
-		out, err = runCommand("systemctl", "--user", "is-active", "picoclaw")
-		if err == nil && strings.TrimSpace(out) == "active" {
-			s.ServiceStatus = "active"
-		} else {
-			s.ServiceStatus = "inactive"
-		}
+		s.OS = "linux"
 	}
 
 	// Checklist
@@ -160,6 +137,118 @@ func buildSystemStatus() SystemStatus {
 	s.Checklist.Service = s.ServiceStatus == "active"
 
 	return s
+}
+
+// ------- Service Helpers -------
+
+func getServiceStatus() string {
+	if runtime.GOOS == "darwin" {
+		// launchctl list returns a line with the label if loaded
+		out, err := runCommand("launchctl", "list", "com.picoclaw.agent")
+		if err == nil && !strings.Contains(out, "Could not find") && out != "" {
+			return "active"
+		}
+		return "inactive"
+	}
+	// Linux systemd
+	out, err := runCommand("systemctl", "--user", "is-active", "picoclaw")
+	if err == nil && strings.TrimSpace(out) == "active" {
+		return "active"
+	}
+	return "inactive"
+}
+
+// ------- RAM Helpers -------
+
+func getRAM() string {
+	if runtime.GOOS == "darwin" {
+		return getMacRAM()
+	}
+	return getLinuxRAM()
+}
+
+// macOS: vm_stat for free pages + sysctl for total
+func getMacRAM() string {
+	// Total RAM via sysctl
+	totalOut, err := runCommand("sysctl", "-n", "hw.memsize")
+	if err != nil {
+		return "unavailable"
+	}
+	totalBytes, err := strconv.ParseInt(strings.TrimSpace(totalOut), 10, 64)
+	if err != nil {
+		return "unavailable"
+	}
+
+	// Free pages via vm_stat
+	vmOut, err := runCommand("vm_stat")
+	if err != nil {
+		return "unavailable"
+	}
+
+	var pageSize int64 = 4096
+	var freePages, inactivePages int64
+	for _, line := range strings.Split(vmOut, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "Mach Virtual Memory Statistics") {
+			// Extract page size: "page size of 4096 bytes"
+			var ps int64
+			if _, err := fmt.Sscanf(line, "Mach Virtual Memory Statistics: (page size of %d bytes)", &ps); err == nil {
+				pageSize = ps
+			}
+		}
+		var val int64
+		if strings.HasPrefix(line, "Pages free:") {
+			fmt.Sscanf(strings.TrimRight(strings.Split(line, ":")[1], "."), "%d", &val)
+			freePages = val
+		}
+		if strings.HasPrefix(line, "Pages inactive:") {
+			fmt.Sscanf(strings.TrimRight(strings.Split(line, ":")[1], "."), "%d", &val)
+			inactivePages = val
+		}
+	}
+
+	freeBytes := (freePages + inactivePages) * pageSize
+	return formatBytes(freeBytes) + " free of " + formatBytes(totalBytes)
+}
+
+// Linux: read /proc/meminfo directly — works everywhere, no column guessing
+func getLinuxRAM() string {
+	data, err := os.ReadFile("/proc/meminfo")
+	if err != nil {
+		return "unavailable"
+	}
+
+	var totalKB, availKB int64
+	for _, line := range strings.Split(string(data), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+		val, err := strconv.ParseInt(fields[1], 10, 64)
+		if err != nil {
+			continue
+		}
+		switch fields[0] {
+		case "MemTotal:":
+			totalKB = val
+		case "MemAvailable:":
+			availKB = val
+		}
+	}
+
+	if totalKB == 0 {
+		return "unavailable"
+	}
+	return formatBytes(availKB*1024) + " free of " + formatBytes(totalKB*1024)
+}
+
+func formatBytes(b int64) string {
+	const gb = 1024 * 1024 * 1024
+	const mb = 1024 * 1024
+	if b >= gb {
+		return fmt.Sprintf("%.1fGB", float64(b)/float64(gb))
+	}
+	return fmt.Sprintf("%.0fMB", float64(b)/float64(mb))
 }
 
 // ------- Config Helpers -------
