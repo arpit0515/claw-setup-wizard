@@ -1,6 +1,6 @@
 # 🦞 claw-setup-wizard
 
-A browser-based setup wizard for [PicoClaw](https://github.com/sipeed/picoclaw) and [OpenClaw](https://github.com/openclaw/openclaw) — runs on your Raspberry Pi or any Linux machine.
+A browser-based setup wizard for [PicoClaw](https://github.com/sipeed/picoclaw) — runs on your Raspberry Pi or any Linux machine.
 
 No JSON editing. No terminal juggling. Just open a browser and follow the steps.
 
