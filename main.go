@@ -16,6 +16,11 @@ var templateFiles embed.FS
 var tmpl *template.Template
 
 func main() {
+	freePort(3000)
+	freePort(3455) // OAuth callback port
+
+	initDirs()
+
 	var err error
 	tmpl, err = template.ParseFS(templateFiles, "templates/*.html")
 	if err != nil {
@@ -23,6 +28,8 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
+
+	// ── Existing routes ───────────────────────────────────────────────────────
 	mux.HandleFunc("/", handleIndex)
 	mux.HandleFunc("/api/system-check", handleSystemCheck)
 	mux.HandleFunc("/api/validate-llm", handleValidateLLM)
@@ -35,10 +42,15 @@ func main() {
 	mux.HandleFunc("/api/health", handleHealth)
 	mux.HandleFunc("/api/install-picoclaw", handleInstallPicoclaw)
 	mux.HandleFunc("/api/models", handleGetModels)
-	mux.HandleFunc("/api/restart-service", handleRestartService)
-	mux.HandleFunc("/api/local-ip", handleLocalIP)
-	freePort(3000)
-	initDirs()
+
+	// ── Tools & OAuth routes ──────────────────────────────────────────────────
+	mux.HandleFunc("/api/tools", handleGetTools)
+	mux.HandleFunc("/api/oauth/start", handleOAuthStart)
+	mux.HandleFunc("/api/oauth/status", handleOAuthStatus)
+	mux.HandleFunc("/api/oauth/accounts", handleOAuthAccounts)
+	mux.HandleFunc("/api/oauth/revoke", handleOAuthRevoke)
+	mux.HandleFunc("/api/oauth/upload-credentials", handleUploadCredentials)
+	mux.HandleFunc("/oauth/callback", handleOAuthCallback)
 
 	ip := getLocalIP()
 	fmt.Println(" *** claw-setup is running **** ")
@@ -60,7 +72,6 @@ func getLocalIP() string {
 	if err != nil {
 		return "localhost"
 	}
-
 	for _, addr := range addrs {
 		if ipnet, ok := addr.(*net.IPNet); ok &&
 			!ipnet.IP.IsLoopback() &&
