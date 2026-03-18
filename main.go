@@ -38,6 +38,7 @@ func main() {
 	mux.HandleFunc("/api/restart-service", handleRestartService)
 	mux.HandleFunc("/api/local-ip", handleLocalIP)
 	freePort(3000)
+	initDirs()
 
 	ip := getLocalIP()
 	fmt.Println(" *** claw-setup is running **** ")

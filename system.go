@@ -53,12 +53,20 @@ func freePort(port int) {
 	}
 }
 
-func buildSystemStatus() SystemStatus {
-	var s SystemStatus
-
+func initDirs() {
 	home, _ := os.UserHomeDir()
 	os.MkdirAll(filepath.Join(home, ".picoclaw", "config"), 0755)
 	os.MkdirAll(filepath.Join(home, ".picoclaw", "tokens"), 0700)
+
+	// Lock down credentials file if it exists
+	credsFile := filepath.Join(home, ".picoclaw", "config", "google_credentials.json")
+	if _, err := os.Stat(credsFile); err == nil {
+		os.Chmod(credsFile, 0600)
+	}
+}
+
+func buildSystemStatus() SystemStatus {
+	var s SystemStatus
 
 	// Check PicoClaw
 	path, err := exec.LookPath("picoclaw")
