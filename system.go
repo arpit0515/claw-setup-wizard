@@ -43,6 +43,16 @@ func handleSystemCheck(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(status)
 }
 
+func freePort(port int) {
+	out, err := runCommand("lsof", "-ti", fmt.Sprintf(":%d", port))
+	if err != nil || strings.TrimSpace(out) == "" {
+		return
+	}
+	for _, pid := range strings.Fields(out) {
+		runCommand("kill", "-9", pid)
+	}
+}
+
 func buildSystemStatus() SystemStatus {
 	var s SystemStatus
 

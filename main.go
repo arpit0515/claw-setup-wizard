@@ -1,4 +1,5 @@
 package main
+
 import (
 	"embed"
 	"fmt"
@@ -8,7 +9,7 @@ import (
 	"net/http"
 	"os/exec"
 	"strings"
-	)
+)
 
 //go:embed templates/*
 var templateFiles embed.FS
@@ -36,6 +37,7 @@ func main() {
 	mux.HandleFunc("/api/models", handleGetModels)
 	mux.HandleFunc("/api/restart-service", handleRestartService)
 	mux.HandleFunc("/api/local-ip", handleLocalIP)
+	freePort(3000)
 
 	ip := getLocalIP()
 	fmt.Println(" *** claw-setup is running **** ")
@@ -48,7 +50,7 @@ func main() {
 	log.Fatal(http.ListenAndServe("0.0.0.0:3000", mux))
 }
 
-func handleIndex (w http.ResponseWriter, r *http.Request) {
+func handleIndex(w http.ResponseWriter, r *http.Request) {
 	tmpl.ExecuteTemplate(w, "index.html", nil)
 }
 
@@ -60,8 +62,8 @@ func getLocalIP() string {
 
 	for _, addr := range addrs {
 		if ipnet, ok := addr.(*net.IPNet); ok &&
-		!ipnet.IP.IsLoopback() &&
-		ipnet.IP.To4() != nil {
+			!ipnet.IP.IsLoopback() &&
+			ipnet.IP.To4() != nil {
 			return ipnet.IP.String()
 		}
 	}
@@ -69,6 +71,6 @@ func getLocalIP() string {
 }
 
 func runCommand(name string, args ...string) (string, error) {
-	out, err := exec.Command(name, args...).CombinedOutput() 
+	out, err := exec.Command(name, args...).CombinedOutput()
 	return strings.TrimSpace(string(out)), err
 }
