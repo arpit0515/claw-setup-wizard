@@ -421,6 +421,15 @@
     cursor: pointer;
   }
 
+
+  /* key-status hint shown when using saved key */
+  .key-status {
+    font-size: 11px;
+    color: var(--accent2);
+    margin-top: 4px;
+    display: none;
+  }
+  .key-status.visible { display: block; }
   /* ── Launch success commands ── */
   .cmd-block {
     background: var(--surface2);
@@ -688,6 +697,7 @@
           <label>API Key</label>
           <input type="password" id="llm-key" placeholder="Paste your API key here" autocomplete="off" oninput="onKeyInput()" />
           <div class="hint" id="llm-key-hint">Get your free key at <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--accent2)">openrouter.ai/keys</a></div>
+          <div class="key-status" id="key-status">✓ Using saved key — paste a new one above to change it</div>
         </div>
         <div class="form-group" id="model-group">
           <label>Model</label>
@@ -1205,34 +1215,69 @@ function selectProvider(p) {
     document.getElementById('llm-model').innerHTML = info.models
       .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
   }
-  document.getElementById('llm-key').value = '';
+  // Don't clear key — update saved-key status indicator instead
+  updateKeyStatus();
   hideAlert('llm-alert');
+}
+
+// Returns true if the current provider has a saved key in config
+function hasSavedKey() {
+  return systemData.has_provider && systemData.active_provider === selectedProvider;
+}
+
+function updateKeyStatus() {
+  const saved = hasSavedKey();
+  const keyEl = document.getElementById('key-status');
+  keyEl.className = saved ? 'key-status visible' : 'key-status';
+  const typed = document.getElementById('llm-key').value.trim().length >= 10;
+  document.getElementById('btn-load-models').disabled = !saved && !typed;
+  document.getElementById('btn-validate-llm').textContent = saved ? 'Save Model' : 'Validate Key';
 }
 
 async function validateLLM() {
   const key = document.getElementById('llm-key').value.trim();
   const model = document.getElementById('llm-model').value;
-  if (!key) { showAlert('llm-alert', 'error', 'Please enter your API key'); return; }
+  if (!model) { showAlert('llm-alert', 'error', 'Please select a model'); return; }
+  if (!key && !hasSavedKey()) { showAlert('llm-alert', 'error', 'Please enter your API key'); return; }
 
   const btn = document.getElementById('btn-validate-llm');
-  btn.innerHTML = '<div class="spinner"></div> Validating...';
+  btn.innerHTML = '<div class="spinner"></div> Saving...';
   btn.disabled = true;
 
   const fd = new FormData();
   fd.append('provider', selectedProvider || 'openrouter');
-  fd.append('api_key', key);
   fd.append('model', model);
+  if (key) fd.append('api_key', key);
 
   const r = await fetch('/api/validate-llm', { method: 'POST', body: fd });
   const data = await r.json();
 
-  btn.innerHTML = 'Validate Key';
+  btn.innerHTML = hasSavedKey() ? 'Save Model' : 'Validate Key';
   btn.disabled = false;
 
   if (data.ok) {
-    showAlert('llm-alert', 'success', '✓ ' + data.message + ` - using ${model}`);
-    document.getElementById('btn-llm-next').disabled = false;
+    systemData.has_provider = true;
+    systemData.active_provider = selectedProvider;
+    systemData.active_model = model;
+    updateKeyStatus();
     markDone(1); state.llm = true;
+    document.getElementById('btn-llm-next').disabled = false;
+    if (state.service) {
+      showAlert('llm-alert', 'info', `✓ Model saved — restarting agent to apply ${model}...`);
+      btn.innerHTML = '<div class="spinner"></div> Restarting...';
+      btn.disabled = true;
+      const rr = await fetch('/api/restart-service', { method: 'POST' });
+      const rd = await rr.json();
+      btn.innerHTML = hasSavedKey() ? 'Save Model' : 'Validate Key';
+      btn.disabled = false;
+      if (rd.ok) {
+        showAlert('llm-alert', 'success', `✓ Model updated & agent restarted — now using ${model}`);
+      } else {
+        showAlert('llm-alert', 'warn', `✓ Model saved but restart failed: ${rd.message}`);
+      }
+    } else {
+      showAlert('llm-alert', 'success', '✓ ' + data.message + ` — using ${model}`);
+    }
   } else {
     showAlert('llm-alert', 'error', '✗ ' + data.message);
     markError(1);
@@ -1379,6 +1424,7 @@ function populateLLM() {
     document.getElementById('btn-llm-next').disabled = false;
     markDone(1);
   }
+  updateKeyStatus();
 }
 
 function populateTelegram() {
@@ -1419,14 +1465,16 @@ async function installPicoclaw() {
 
 let allModels = [];
 function onKeyInput() {
-  document.getElementById('btn-load-models').disabled = document.getElementById('llm-key').value.trim().length < 10;
+  updateKeyStatus();
 }
 async function loadModels() {
   const key = document.getElementById('llm-key').value.trim();
   const btn = document.getElementById('btn-load-models');
   btn.innerHTML = '<div class="spinner"></div>';
   btn.disabled = true;
-  const fd = new FormData(); fd.append('provider', selectedProvider); fd.append('api_key', key);
+  const fd = new FormData();
+  fd.append('provider', selectedProvider);
+  if (key) fd.append('api_key', key); // omit if empty — backend uses saved key
   const r = await fetch('/api/models', { method: 'POST', body: fd });
   const data = await r.json();
   btn.innerHTML = '↻ Load Models'; btn.disabled = false;

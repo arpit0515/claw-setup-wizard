@@ -810,7 +810,12 @@ func oauthSuccessPage() string {
       left--;
       num.textContent = left;
       ring.style.strokeDashoffset = circ * (1 - left / 10);
-      if (left <= 0) { window.close(); }
+      if (left <= 0) {
+        // Try window.close() first (works if opened via window.open)
+        // Fall back to a blank page — browser won't block that
+        try { window.close(); } catch(e) {}
+        setTimeout(() => { window.location.replace('about:blank'); }, 200);
+      }
     };
     setInterval(tick, 1000);
   </script>
