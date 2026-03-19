@@ -49,7 +49,7 @@ func main() {
 	mux.HandleFunc("/api/oauth/status", handleOAuthStatus)
 	mux.HandleFunc("/api/oauth/accounts", handleOAuthAccounts)
 	mux.HandleFunc("/api/oauth/revoke", handleOAuthRevoke)
-	mux.HandleFunc("/api/oauth/upload-credentials", handleUploadCredentials)
+	mux.HandleFunc("/api/oauth/creds-status", handleCredsStatus)
 	mux.HandleFunc("/oauth/callback", handleOAuthCallback)
 
 	ip := getLocalIP()

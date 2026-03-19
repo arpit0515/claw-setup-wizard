@@ -2,7 +2,6 @@
 set -e
 REPO_DIR="$PWD"
 LOG_FILE="$REPO_DIR/claw-setup-install.log"
-GO_VERSION="1.23.4"
 GITHUB_REPO="https://github.com/arpit0515/claw-setup-wizard"
 
 log() {
@@ -30,7 +29,7 @@ if git -C "$REPO_DIR" rev-parse --is-inside-work-tree &>/dev/null; then
     log "✓ Already up to date (${AFTER:0:7})"
   fi
 else
-  log "⚠  Not a git repo - cloning fresh copy from $GITHUB_REPO..."
+  log "⚠  Not a git repo — cloning fresh copy from $GITHUB_REPO..."
   TMP_CLONE=$(mktemp -d)
   git clone "$GITHUB_REPO" "$TMP_CLONE" >> "$LOG_FILE" 2>&1
   cp -r "$TMP_CLONE/." "$REPO_DIR/"
@@ -82,86 +81,25 @@ EOF
       log "✓ Will launch automatically on next boot"
       ;;
     *)
-      log "⏭  Skipping startup autorun - run install.sh again anytime to set it up"
+      log "⏭  Skipping startup autorun — run install.sh again anytime to set it up"
       ;;
   esac
 fi
 
-# ── Detect architecture ───────────────────────────────────────────────────────
-ARCH=$(uname -m)
-case $ARCH in
-  aarch64) GO_ARCH="arm64" ;;
-  armv7l)  GO_ARCH="armv6l" ;;
-  x86_64)  GO_ARCH="amd64" ;;
-  arm64)   GO_ARCH="arm64" ;;  # macOS Apple Silicon
-  *)
-    log "❌ Unsupported architecture: $ARCH"
-    exit 1
-    ;;
-esac
-log ""
-log "✓ Architecture: $ARCH ($GO_ARCH)"
-
-# ── Check / Install Go ────────────────────────────────────────────────────────
-# Prepend /usr/local/go/bin so we find a previously installed Go even when
-# ~/.zshrc / ~/.bash_profile haven't been sourced in this shell session
-export PATH=/usr/local/go/bin:$PATH
-
-if command -v go &>/dev/null; then
-  GO_INSTALLED=$(go version | awk '{print $3}' | sed 's/go//')
-  log "✓ Go already installed: $GO_INSTALLED"
-else
-  log ""
-  log "⬇  Go not found - installing Go $GO_VERSION..."
-
-  OS=$(uname -s)
-  if [[ "$OS" == "Darwin" ]]; then
-    GO_TARBALL="go${GO_VERSION}.darwin-${GO_ARCH}.tar.gz"
-  else
-    GO_TARBALL="go${GO_VERSION}.linux-${GO_ARCH}.tar.gz"
-  fi
-  GO_URL="https://go.dev/dl/${GO_TARBALL}"
-  TMP_DIR=$(mktemp -d)
-  log "   Downloading $GO_URL"
-  # Use curl on macOS (wget may not be present), wget on Linux
-  if [[ "$OS" == "Darwin" ]]; then
-    curl -fsSL -o "$TMP_DIR/$GO_TARBALL" "$GO_URL" >> "$LOG_FILE" 2>&1
-  else
-    wget -q -O "$TMP_DIR/$GO_TARBALL" "$GO_URL" >> "$LOG_FILE" 2>&1
-  fi
-  log "   Extracting to /usr/local/go..."
-  sudo rm -rf /usr/local/go
-  sudo tar -C /usr/local -xzf "$TMP_DIR/$GO_TARBALL" >> "$LOG_FILE" 2>&1
-  rm -rf "$TMP_DIR"
-  export PATH=$PATH:/usr/local/go/bin
-  if [[ "$OS" == "Darwin" ]]; then
-    # macOS defaults to zsh; update both shells just in case
-    grep -q '/usr/local/go/bin' ~/.zshrc 2>/dev/null    || echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.zshrc
-    grep -q '/usr/local/go/bin' ~/.bash_profile 2>/dev/null || echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bash_profile
-  else
-    grep -q '/usr/local/go/bin' ~/.bashrc   || echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
-    grep -q '/usr/local/go/bin' ~/.profile  || echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.profile
-  fi
-  log "✓ Go $GO_VERSION installed"
+# ── Verify pre-built binary ───────────────────────────────────────────────────
+if [ ! -f "$REPO_DIR/claw-setup" ]; then
+  log "❌ claw-setup binary not found in $REPO_DIR"
+  log "   Make sure you cloned the full repo including the binary."
+  exit 1
 fi
-
-# ── Build ─────────────────────────────────────────────────────────────────────
-log ""
-log "🔨 Building claw-setup..."
-[ ! -f go.mod ] && /usr/local/go/bin/go mod init claw-setup >> "$LOG_FILE" 2>&1
-/usr/local/go/bin/go build -o claw-setup . >> "$LOG_FILE" 2>&1
-log "✓ Build complete"
+chmod +x "$REPO_DIR/claw-setup"
+log "✓ claw-setup binary ready"
 
 # ── Start ─────────────────────────────────────────────────────────────────────
-if [[ "$(uname -s)" == "Darwin" ]]; then
-  LOCAL_IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo "localhost")
-else
-  LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
-fi
-[ -z "$LOCAL_IP" ] && LOCAL_IP="localhost"
+LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || ipconfig getifaddr en0)
 log ""
 log "================================"
-log "✅ Ready - open in your browser:"
+log "✅ Ready — open in your browser:"
 log "   👉 http://$LOCAL_IP:3000"
 log "================================"
 log ""
