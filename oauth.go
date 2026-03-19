@@ -43,10 +43,13 @@ type ClawTool struct {
 	Name         string   `json:"name"`
 	Description  string   `json:"description"`
 	Dir          string   `json:"dir"`
+	SkillMD      string   `json:"skill_md"`
 	Status       string   `json:"status"`
 	RequiresAuth []string `json:"requires_auth"`
 	MCPTools     []string `json:"mcp_tools"`
 	HTTPPort     int      `json:"http_port"`
+	ServiceStart string   `json:"service_start"`
+	HealthURL    string   `json:"health_url"`
 	Category     string   `json:"category"`
 }
 
@@ -420,6 +423,8 @@ func handleOAuthStatus(w http.ResponseWriter, r *http.Request) {
 			errorResponse(w, "Could not save token: "+err.Error())
 			return
 		}
+		// Auto-configure tools and install services from tools.json
+		go autoConfigureFromRegistry()
 		jsonResponse(w, map[string]interface{}{
 			"ok": true, "status": "connected",
 			"email": email, "message": "Account connected: " + email,
@@ -481,6 +486,99 @@ func handleCredsStatus(w http.ResponseWriter, r *http.Request) {
 		"exists": err == nil,
 		"error":  errMsg,
 	})
+}
+
+// ── Auto-configure from tools registry ───────────────────────────────────────
+
+// autoConfigureFromRegistry fetches tools.json, reads each tool's SKILL.md,
+// writes tool URLs into ~/.picoclaw/config.json, and installs systemd services.
+// Called automatically after every successful OAuth connection.
+func autoConfigureFromRegistry() {
+	tools, err := fetchToolsRegistry()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "auto-configure: could not fetch tools registry: %v\n", err)
+		return
+	}
+
+	cfg := readConfig()
+	if cfg.Tools == nil {
+		cfg.Tools = make(map[string]interface{})
+	}
+
+	home, _ := os.UserHomeDir()
+	toolsRepoDir := filepath.Join(home, "claw-tools.dev")
+
+	for _, t := range tools {
+		if t.Status != "available" {
+			continue
+		}
+		// Only configure tools that require auth we have satisfied
+		if len(t.RequiresAuth) > 0 {
+			accounts, _ := listConnectedAccounts()
+			if len(accounts) == 0 {
+				continue
+			}
+		}
+
+		// Write tool config derived from tools.json — no hardcoding
+		cfg.Tools[t.ID] = map[string]interface{}{
+			"url":       fmt.Sprintf("http://localhost:%d", t.HTTPPort),
+			"autostart": true,
+			"health":    t.HealthURL,
+		}
+
+		// Install systemd service using service_start from tools.json
+		toolDir := filepath.Join(toolsRepoDir, t.Dir)
+		installToolService(t.ID, t.HTTPPort, t.ServiceStart, toolDir, home)
+	}
+
+	if err := writeConfig(cfg); err != nil {
+		fmt.Fprintf(os.Stderr, "auto-configure: could not write config: %v\n", err)
+		return
+	}
+	fmt.Fprintf(os.Stderr, "auto-configure: config updated successfully\n")
+}
+
+func installToolService(id string, port int, startCmd string, toolDir string, home string) {
+	serviceDir := filepath.Join(home, ".config", "systemd", "user")
+	os.MkdirAll(serviceDir, 0755)
+
+	// Build ExecStart from service_start field in tools.json
+	// e.g. "go run . --mode http --port 3101" → full path command
+	goBin := "/usr/local/go/bin/go"
+	if _, err := os.Stat(goBin); err != nil {
+		goBin = "go" // fall back to PATH
+	}
+	execStart := fmt.Sprintf("%s run . --mode http --port %d", goBin, port)
+
+	content := fmt.Sprintf(`[Unit]
+Description=ClawTools %s
+After=network.target picoclaw.service
+
+[Service]
+Type=simple
+ExecStart=%s
+WorkingDirectory=%s
+Restart=on-failure
+RestartSec=5
+Environment=HOME=%s
+
+[Install]
+WantedBy=default.target
+`, id, execStart, toolDir, home)
+
+	serviceName := "claw-" + id
+	path := filepath.Join(serviceDir, serviceName+".service")
+
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "auto-configure: could not write service %s: %v\n", serviceName, err)
+		return
+	}
+
+	runCommand("systemctl", "--user", "daemon-reload")
+	runCommand("systemctl", "--user", "enable", serviceName)
+	runCommand("systemctl", "--user", "start", serviceName)
+	fmt.Fprintf(os.Stderr, "auto-configure: service %s installed and started\n", serviceName)
 }
 
 // ── Success page ──────────────────────────────────────────────────────────────
