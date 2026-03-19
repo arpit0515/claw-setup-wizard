@@ -518,10 +518,6 @@
       <div class="step-icon" id="icon-4">5</div>
       <div><div class="step-label">Launch</div><div class="step-sub">Go live</div></div>
     </div>
-    <div class="step-item" id="nav-5" onclick="goTo(5)">
-      <div class="step-icon" id="icon-5">6</div>
-      <div><div class="step-label">Connected Tools</div><div class="step-sub">Gmail &amp; Calendar</div></div>
-    </div>
   </aside>
 
   <!-- Main Content -->
@@ -541,22 +537,6 @@
         </div>
       </div>
       <div id="sys-alert" class="alert"></div>
-      <div class="card" id="picoclaw-update-card" style="display:none;border-color:var(--warning)">
-        <div class="card-title">PicoClaw Update Available</div>
-        <div id="update-info" style="font-size:13px;color:var(--text2);margin-bottom:12px"></div>
-        <div id="update-alert" class="alert"></div>
-        <div class="btn-row">
-          <button class="btn btn-primary" id="btn-update-picoclaw" onclick="updatePicoclaw()">⬆ Update PicoClaw</button>
-        </div>
-      </div>
-      <div class="card" id="picoclaw-update-card" style="display:none;border-color:var(--warning)">
-        <div class="card-title">PicoClaw Update Available</div>
-        <div id="update-info" style="font-size:13px;color:var(--text2);margin-bottom:12px"></div>
-        <div id="update-alert" class="alert"></div>
-        <div class="btn-row">
-          <button class="btn btn-primary" id="btn-update-picoclaw" onclick="updatePicoclaw()">⬆ Update PicoClaw</button>
-        </div>
-      </div>
       <div id="install-picoclaw-section">
         <div class="card" style="border-color: var(--warning)">
           <div class="card-title">PicoClaw Not Found</div>
@@ -600,6 +580,7 @@
           <label>API Key</label>
           <input type="password" id="llm-key" placeholder="Paste your API key here" autocomplete="off" oninput="onKeyInput()" />
           <div class="hint" id="llm-key-hint">Get your free key at <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--accent2)">openrouter.ai/keys</a></div>
+          <div id="saved-key-hint" class="hint" style="display:none; color:var(--accent2)">✓ Using saved key — paste a new key above to update it</div>
         </div>
         <div class="form-group" id="model-group">
           <label>Model</label>
@@ -752,7 +733,7 @@
           <div class="status-row"><span>Loading...</span></div>
         </div>
       </div>
-      <div class="card" id="service-install-card">
+      <div class="card">
         <div class="card-title">Install as System Service</div>
         <p style="font-size:13px; color:var(--text2); margin-bottom:14px">This sets PicoClaw to start automatically on boot and restart if it crashes.</p>
         <div id="service-alert" class="alert"></div>
@@ -773,111 +754,8 @@
               <code>systemctl --user restart picoclaw</code>
               <code>picoclaw agent -m "hello"</code>
             </div>
-            <div class="btn-row" style="justify-content:center;margin-top:16px">
-              <button class="btn btn-primary" onclick="goTo(5)">Connect Tools →</button>
-            </div>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- STEP 5: Connected Tools -->
-    <div class="section" id="step-5">
-      <h2>Connected Tools</h2>
-      <p class="subtitle">Connect your email and calendar so your agent can read, summarise and brief you daily.</p>
-
-      <!-- Credentials status card -->
-      <div class="card" id="creds-card">
-        <div class="card-title">Google OAuth</div>
-        <div class="status-row">
-          <span class="status-label">ClawTools OAuth config</span>
-          <div class="status-right">
-            <span class="badge ok">✓ Ready</span>
-          </div>
-        </div>
-        <p style="font-size:12px;color:var(--text2);margin-top:8px">OAuth credentials are served securely — no setup needed. Click Add Account to connect.</p>
-      </div>
-
-      <!-- Tools grid -->
-      <div class="card">
-        <div class="card-title">Available Tools</div>
-        <div id="tools-loading" style="padding:12px 0;color:var(--text2);font-size:13px">
-          <div class="spinner" style="display:inline-block;margin-right:8px"></div> Loading tools registry...
-        </div>
-        <div id="tools-grid" style="display:none"></div>
-      </div>
-
-      <!-- Connected accounts -->
-      <div class="card" id="accounts-card" style="display:none">
-        <div class="card-title">Connected Accounts</div>
-        <div id="accounts-list"></div>
-        <div class="btn-row" style="margin-top:12px">
-          <button class="btn btn-primary" onclick="startOAuth()">＋ Add Account</button>
-        </div>
-      </div>
-
-      <!-- OAuth in-progress -->
-      <div class="card" id="oauth-progress-card" style="display:none;border-color:var(--accent)">
-        <div style="display:flex;align-items:center;gap:10px;padding:8px 0">
-          <div class="spinner"></div>
-          <span style="font-size:13px">Waiting for Google authorization in browser...</span>
-        </div>
-        <p style="font-size:12px;color:var(--text2);margin-top:8px">A browser window opened on your Pi. Sign in and approve access, then return here.</p>
-        <div id="oauth-alert" class="alert"></div>
-      </div>
-
-      <div class="btn-row">
-        <button class="btn btn-secondary" onclick="loadTools()">↻ Refresh</button>
-      </div>
-    </div>
-
-    <!-- STEP 5: Connected Tools -->
-    <div class="section" id="step-5">
-      <h2>Connected Tools</h2>
-      <p class="subtitle">Connect your email and calendar so your agent can read, summarise and brief you daily.</p>
-
-      <!-- OAuth status -->
-      <div class="card">
-        <div class="card-title">Google OAuth</div>
-        <div class="status-row">
-          <div class="status-left">
-            <span class="status-label">ClawTools OAuth config</span>
-            <span class="status-detail">Served securely from claw-tools.dev</span>
-          </div>
-          <span class="badge ok">✓ Ready</span>
-        </div>
-      </div>
-
-      <!-- Tools grid -->
-      <div class="card">
-        <div class="card-title">Available Tools</div>
-        <div id="tools-loading" style="padding:12px 0;color:var(--text2);font-size:13px">
-          <div class="spinner" style="display:inline-block;margin-right:8px"></div> Loading tools registry...
-        </div>
-        <div id="tools-grid" style="display:none"></div>
-      </div>
-
-      <!-- Connected accounts -->
-      <div class="card" id="accounts-card" style="display:none">
-        <div class="card-title">Connected Accounts</div>
-        <div id="accounts-list"></div>
-        <div class="btn-row" style="margin-top:12px">
-          <button class="btn btn-primary" onclick="startOAuth()">＋ Add Account</button>
-        </div>
-      </div>
-
-      <!-- OAuth in-progress -->
-      <div class="card" id="oauth-progress-card" style="display:none;border-color:var(--accent)">
-        <div style="display:flex;align-items:center;gap:10px;padding:8px 0">
-          <div class="spinner"></div>
-          <span style="font-size:13px">Waiting for Google authorization in browser...</span>
-        </div>
-        <p style="font-size:12px;color:var(--text2);margin-top:8px">A browser window opened on your Pi. Sign in and approve access, then return here.</p>
-        <div id="oauth-alert" class="alert"></div>
-      </div>
-
-      <div class="btn-row">
-        <button class="btn btn-secondary" onclick="loadTools()">↻ Refresh</button>
       </div>
     </div>
 
@@ -906,18 +784,14 @@
     <div class="bnav-icon" id="bicon-4">5</div>
     <div class="bnav-label">Launch</div>
   </div>
-  <div class="bottom-nav-item" id="bnav-5" onclick="goTo(5)">
-    <div class="bnav-icon" id="bicon-5">6</div>
-    <div class="bnav-label">Tools</div>
-  </div>
 </nav>
 
 <script>
 let currentStep = 0;
 let selectedProvider = 'openrouter';
 let systemData = {};
-let state = { system: false, llm: false, telegram: false, soul: false, service: false, tools: false };
-const progress = [10, 30, 50, 70, 88, 100];
+let state = { system: false, llm: false, telegram: false, soul: false, service: false };
+const progress = [10, 30, 55, 75, 95];
 
 const providerModels = {
   openrouter: {
@@ -963,7 +837,6 @@ function goTo(n) {
   if (n === 2) populateTelegram();
   if (n === 3) populateSoul();
   if (n === 4) loadFinalChecklist();
-  if (n === 5) loadTools();
 }
 
 function markDone(n) {
@@ -1051,32 +924,52 @@ function selectProvider(p) {
     document.getElementById('llm-model').innerHTML = info.models
       .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
   }
-  document.getElementById('llm-key').value = '';
-  hideAlert('llm-alert');
+  // Don't clear key — update hint and button state based on saved key presence
+  updateKeyState();
+}
+
+// Returns true if we have a saved key for the currently selected provider
+function hasSavedKey() {
+  return !!(systemData.has_provider && systemData.active_provider === selectedProvider);
+}
+
+// Syncs the saved-key hint, Load Models button, and Validate button label
+function updateKeyState() {
+  const saved = hasSavedKey();
+  const typed = document.getElementById('llm-key').value.trim().length >= 10;
+  const hint  = document.getElementById('saved-key-hint');
+  if (hint) hint.style.display = (saved && !typed) ? 'block' : 'none';
+  document.getElementById('btn-load-models').disabled = !saved && !typed;
+  document.getElementById('btn-validate-llm').textContent = saved ? 'Save Model' : 'Validate Key';
 }
 
 async function validateLLM() {
-  const key = document.getElementById('llm-key').value.trim();
+  const key   = document.getElementById('llm-key').value.trim();
   const model = document.getElementById('llm-model').value;
-  if (!key) { showAlert('llm-alert', 'error', 'Please enter your API key'); return; }
+  if (!model) { showAlert('llm-alert', 'error', 'Please select a model'); return; }
+  if (!key && !hasSavedKey()) { showAlert('llm-alert', 'error', 'Please enter your API key'); return; }
 
   const btn = document.getElementById('btn-validate-llm');
-  btn.innerHTML = '<div class="spinner"></div> Validating...';
+  btn.innerHTML = '<div class="spinner"></div> Saving...';
   btn.disabled = true;
 
   const fd = new FormData();
-  fd.append('provider', selectedProvider || 'openrouter');
-  fd.append('api_key', key);
+  fd.append('provider', selectedProvider);
   fd.append('model', model);
+  if (key) fd.append('api_key', key); // only send if user typed a new one — backend falls back to saved
 
-  const r = await fetch('/api/validate-llm', { method: 'POST', body: fd });
+  const r    = await fetch('/api/validate-llm', { method: 'POST', body: fd });
   const data = await r.json();
 
-  btn.innerHTML = 'Validate Key';
+  btn.innerHTML = hasSavedKey() ? 'Save Model' : 'Validate Key';
   btn.disabled = false;
 
   if (data.ok) {
-    showAlert('llm-alert', 'success', '✓ ' + data.message + ` - using ${model}`);
+    systemData.has_provider    = true;
+    systemData.active_provider = selectedProvider;
+    systemData.active_model    = model;
+    updateKeyState();
+    showAlert('llm-alert', 'success', `✓ ${data.message} — using ${model}`);
     document.getElementById('btn-llm-next').disabled = false;
     markDone(1); state.llm = true;
   } else {
@@ -1177,14 +1070,6 @@ async function loadFinalChecklist() {
       <span class="check">${ok ? '✅' : '⭕'}</span>
       <span>${label}</span>
     </div>`).join('');
-
-  // If service already running — hide install card, show success
-  if (data.service_status === 'active') {
-    document.getElementById('service-install-card').style.display = 'none';
-    document.getElementById('launch-success').style.display = 'block';
-    document.getElementById('progress').style.width = '100%';
-    markDone(4);
-  }
 }
 
 async function installService() {
@@ -1192,16 +1077,12 @@ async function installService() {
   const r = await fetch('/api/install-service', { method: 'POST' });
   const data = await r.json();
   if (data.ok) {
-    document.getElementById('service-install-card').style.display = 'none';
+    showAlert('service-alert', 'success', '✓ ' + data.message);
     document.getElementById('launch-success').style.display = 'block';
     document.getElementById('progress').style.width = '100%';
     markDone(4); state.service = true;
-    // Wait 2s for systemd to actually start before re-checking status
-    setTimeout(() => loadFinalChecklist(), 2000);
-  } else {
-    showAlert('service-alert', 'error', '✗ ' + data.message);
-    document.getElementById('service-install-card').style.display = 'block';
-  }
+    loadFinalChecklist();
+  } else { showAlert('service-alert', 'error', '✗ ' + data.message); }
 }
 
 function populateLLM() {
@@ -1215,16 +1096,18 @@ function populateLLM() {
     if (!found) {
       const opt = document.createElement('option');
       opt.value = systemData.active_model;
-      opt.text = systemData.active_model + ' (current)';
+      opt.text  = systemData.active_model + ' (current)';
       opt.selected = true;
       sel.insertBefore(opt, sel.firstChild);
     }
   }
   if (systemData.has_provider) {
-    showAlert('llm-alert', 'success', '✓ Already configured — model: ' + systemData.active_model);
+    showAlert('llm-alert', 'success',
+      `✓ Already configured — model: ${systemData.active_model}. Click Load Models to switch, or just Continue.`);
     document.getElementById('btn-llm-next').disabled = false;
     markDone(1);
   }
+  updateKeyState(); // enables Load Models immediately if key already saved
 }
 
 function populateTelegram() {
@@ -1265,15 +1148,17 @@ async function installPicoclaw() {
 
 let allModels = [];
 function onKeyInput() {
-  document.getElementById('btn-load-models').disabled = document.getElementById('llm-key').value.trim().length < 10;
+  updateKeyState(); // re-evaluate based on typed key + saved key
 }
 async function loadModels() {
   const key = document.getElementById('llm-key').value.trim();
   const btn = document.getElementById('btn-load-models');
   btn.innerHTML = '<div class="spinner"></div>';
   btn.disabled = true;
-  const fd = new FormData(); fd.append('provider', selectedProvider); fd.append('api_key', key);
-  const r = await fetch('/api/models', { method: 'POST', body: fd });
+  const fd = new FormData();
+  fd.append('provider', selectedProvider);
+  if (key) fd.append('api_key', key); // omit if empty — backend uses saved key
+  const r    = await fetch('/api/models', { method: 'POST', body: fd });
   const data = await r.json();
   btn.innerHTML = '↻ Load Models'; btn.disabled = false;
   if (!data.ok) { showAlert('llm-alert', 'error', '✗ ' + data.message); return; }
@@ -1287,188 +1172,8 @@ function filterModels() {
   sel.innerHTML = filtered.map(m => `<option value="${m.id}">${m.name}${m.free ? ' 🆓' : ''}</option>`).join('');
 }
 
-// ── PicoClaw version check ────────────────────────────────────────────────────
-async function checkPicoClawVersion() {
-  const r = await fetch('/api/picoclaw/version');
-  const data = await r.json();
-  if (data.update_available) {
-    document.getElementById('picoclaw-update-card').style.display = 'block';
-    document.getElementById('update-info').textContent =
-      `Current: ${data.current}  →  Latest: ${data.latest}`;
-  }
-}
-
-async function updatePicoclaw() {
-  const btn = document.getElementById('btn-update-picoclaw');
-  btn.innerHTML = '<div class="spinner"></div> Updating...';
-  btn.disabled = true;
-  const r = await fetch('/api/picoclaw/update', { method: 'POST' });
-  const data = await r.json();
-  if (data.ok) {
-    showAlert('update-alert', 'success', '✓ ' + data.message);
-  } else {
-    showAlert('update-alert', 'error', '✗ ' + data.message);
-    btn.innerHTML = '⬆ Retry Update';
-    btn.disabled = false;
-  }
-}
-
 // Init
 runSystemCheck();
-checkPicoClawVersion();
-
-// ── Step 5: Connected Tools ───────────────────────────────────────
-
-let oauthPollInterval = null;
-
-const categoryIcon = { email: '✉️', calendar: '📅', utility: '🔧' };
-
-async function loadTools() {
-  // Refresh TOOLS.md, SKILL.md and MCP config on Pi whenever user hits refresh
-  fetch('/api/tools/refresh', { method: 'POST' });
-
-  document.getElementById('tools-loading').style.display = 'block';
-  document.getElementById('tools-grid').style.display = 'none';
-
-  const r = await fetch('/api/tools');
-  const data = await r.json();
-
-  document.getElementById('tools-loading').style.display = 'none';
-
-  if (!data.ok) {
-    document.getElementById('tools-loading').innerHTML =
-      `<span style="color:var(--danger)">✗ Could not load tools registry: ${data.message}</span>`;
-    document.getElementById('tools-loading').style.display = 'block';
-    return;
-  }
-
-  const grid = document.getElementById('tools-grid');
-  grid.style.display = 'block';
-  grid.innerHTML = data.tools.map(t => {
-    const available = t.status === 'available';
-    const icon = categoryIcon[t.category] || '🔧';
-    const authBadge = t.requires_auth && t.requires_auth.length > 0
-      ? `<span style="font-size:10px;background:rgba(108,99,255,0.15);color:var(--accent);padding:2px 7px;border-radius:20px;margin-left:6px">OAuth</span>`
-      : '';
-    const connectedBadge = t.connected
-      ? `<span style="font-size:10px;background:rgba(0,212,170,0.15);color:var(--success);padding:2px 7px;border-radius:20px;margin-left:4px">✓ Connected</span>`
-      : '';
-    const comingSoon = !available
-      ? `<span style="font-size:10px;background:var(--surface2);color:var(--text2);padding:2px 7px;border-radius:20px;margin-left:4px">Coming soon</span>`
-      : '';
-
-    return `
-    <div style="padding:12px 0;border-bottom:1px solid var(--border);">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-        <span style="font-size:16px">${icon}</span>
-        <span style="font-size:14px;font-weight:600">${t.name}</span>
-        ${authBadge}${connectedBadge}${comingSoon}
-      </div>
-      <p style="font-size:12px;color:var(--text2);margin:0 0 6px 24px">${t.description}</p>
-      <div style="margin-left:24px;display:flex;gap:6px;flex-wrap:wrap">
-        ${t.mcp_tools.map(m => `<code style="font-size:10px;background:var(--surface2);color:var(--accent2);padding:1px 6px;border-radius:4px">${m}</code>`).join('')}
-      </div>
-    </div>`;
-  }).join('');
-
-  // Show accounts card if any google tool exists
-  const hasGoogle = data.tools.some(t => t.requires_auth && t.requires_auth.includes('google_oauth2'));
-  if (hasGoogle) {
-    document.getElementById('accounts-card').style.display = 'block';
-    renderAccounts(data.tools[0]?.accounts || []);
-    if (data.tools.some(t => t.connected)) {
-      markDone(5);
-      state.tools = true;
-    }
-  }
-}
-
-function renderAccounts(accounts) {
-  const list = document.getElementById('accounts-list');
-  if (!accounts || accounts.length === 0) {
-    list.innerHTML = `<p style="font-size:13px;color:var(--text2);padding:8px 0">No accounts connected yet.</p>`;
-    return;
-  }
-  list.innerHTML = accounts.map(a => `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
-      <div>
-        <div style="font-size:13px;font-weight:600">${a.email}</div>
-        <div style="font-size:11px;color:var(--text2)">Added ${new Date(a.added_at).toLocaleDateString()}</div>
-      </div>
-      <button class="btn btn-secondary" style="font-size:11px;padding:5px 10px"
-        onclick="revokeAccount('${a.email}')">Revoke</button>
-    </div>`).join('');
-}
-
-async function checkCredentials() {
-  const r = await fetch('/api/oauth/creds-status');
-  const data = await r.json();
-  const row = document.getElementById('creds-status-row');
-  const missing = document.getElementById('creds-missing');
-  if (data.exists) {
-    row.innerHTML = `
-      <span class="status-label">google_credentials.json</span>
-      <div class="status-right">
-        <span class="badge ok">✓ Found</span>
-      </div>`;
-    missing.style.display = 'none';
-    document.getElementById('accounts-card').style.display = 'block';
-  } else {
-    row.innerHTML = `
-      <span class="status-label">google_credentials.json</span>
-      <div class="status-right">
-        <span class="badge warn">○ Missing</span>
-      </div>`;
-    missing.style.display = 'block';
-  }
-}
-
-async function startOAuth() {
-  document.getElementById('oauth-progress-card').style.display = 'block';
-  hideAlert('oauth-alert');
-
-  const r = await fetch('/api/oauth/start', { method: 'POST' });
-  const data = await r.json();
-  if (!data.ok) {
-    showAlert('oauth-alert', 'error', '✗ ' + data.message);
-    document.getElementById('oauth-progress-card').style.display = 'none';
-    return;
-  }
-
-  // Poll for completion
-  oauthPollInterval = setInterval(pollOAuthStatus, 2000);
-}
-
-async function pollOAuthStatus() {
-  const r = await fetch('/api/oauth/status');
-  const data = await r.json();
-
-  if (data.status === 'pending') return; // still waiting
-
-  clearInterval(oauthPollInterval);
-  document.getElementById('oauth-progress-card').style.display = 'none';
-
-  if (data.ok && data.status === 'connected') {
-    showAlert('oauth-alert', 'success', `✓ ${data.email} connected`);
-    document.getElementById('oauth-progress-card').style.display = 'block';
-    setTimeout(() => {
-      document.getElementById('oauth-progress-card').style.display = 'none';
-      loadTools();
-    }, 2000);
-  } else {
-    showAlert('oauth-alert', 'error', '✗ ' + (data.message || 'Authorization failed'));
-    document.getElementById('oauth-progress-card').style.display = 'block';
-  }
-}
-
-async function revokeAccount(email) {
-  if (!confirm(`Remove ${email}?`)) return;
-  const fd = new FormData();
-  fd.append('email', email);
-  const r = await fetch('/api/oauth/revoke', { method: 'POST', body: fd });
-  const data = await r.json();
-  if (data.ok) loadTools();
-}
 </script>
 </body>
 </html>
