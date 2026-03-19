@@ -642,7 +642,8 @@ func autoConfigureFromRegistry() {
 		}
 	}
 
-	cfg.Tools["mcp"] = map[string]interface{}{"servers": mcpServers}
+	// Write at root level as mcpServers — this is the key PicoClaw actually reads
+	cfg.MCPServers = mcpServers
 
 	if err := writeConfig(cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "auto-configure: could not write config: %v\n", err)

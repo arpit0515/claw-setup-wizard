@@ -269,11 +269,12 @@ func formatBytes(b int64) string {
 
 // PicoConfig supports both legacy providers format and new model_list format (v0.2.x)
 type PicoConfig struct {
-	Agents    map[string]interface{}            `json:"agents,omitempty"`
-	Providers map[string]map[string]interface{} `json:"providers,omitempty"`
-	Channels  map[string]map[string]interface{} `json:"channels,omitempty"`
-	Tools     map[string]interface{}            `json:"tools,omitempty"`
-	ModelList []map[string]interface{}          `json:"model_list,omitempty"`
+	Agents     map[string]interface{}            `json:"agents,omitempty"`
+	Providers  map[string]map[string]interface{} `json:"providers,omitempty"`
+	Channels   map[string]map[string]interface{} `json:"channels,omitempty"`
+	Tools      map[string]interface{}            `json:"tools,omitempty"`
+	MCPServers map[string]interface{}            `json:"mcpServers,omitempty"`
+	ModelList  []map[string]interface{}          `json:"model_list,omitempty"`
 }
 
 func getConfigPath() string {
