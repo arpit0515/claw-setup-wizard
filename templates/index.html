@@ -481,25 +481,81 @@
     .btn { width: 100%; justify-content: center; }
     .btn-row { flex-direction: column; align-items: stretch; }
   }
-  /* ── Tool cards ── */
-  .tool-card {
-    border: 1px solid var(--border); border-radius: 10px;
-    padding: 14px; margin-bottom: 10px; transition: border-color 0.2s;
+
+  /* ── Network bar ── */
+  .net-bar {
+    position: fixed; top: var(--header-h); left: 0; right: 0; z-index: 98;
+    background: rgba(15,17,23,0.95); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    gap: 10px; padding: 5px 16px; font-size: 12px; color: var(--text2);
+    backdrop-filter: blur(8px);
   }
-  .tool-card.ready { border-color: var(--success); }
-  .tool-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
-  .tool-card-title { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
-  .tool-card-desc { font-size: 12px; color: var(--text2); margin-bottom: 10px; line-height: 1.5; }
-  .tool-binary { font-size: 11px; color: var(--text2); margin-bottom: 10px; word-break: break-all; }
-  .tool-binary code { color: var(--accent2); font-size: 11px; }
-  .btn-danger { background: rgba(255,79,79,0.15); color: var(--danger); border: 1px solid var(--danger); }
+  .net-bar .net-url { font-family: 'SF Mono','Fira Code',monospace; color: var(--accent2); font-weight: 600; font-size: 13px; letter-spacing: 0.02em; }
+  .net-bar .net-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 6px var(--success); flex-shrink: 0; }
+  .net-bar .net-copy { background: none; border: 1px solid var(--border); color: var(--text2); border-radius: 5px; padding: 1px 8px; font-size: 11px; cursor: pointer; transition: all 0.15s; }
+  .net-bar .net-copy:hover { border-color: var(--accent2); color: var(--accent2); }
+  .net-bar .net-qr-btn { background: none; border: 1px solid var(--border); color: var(--text2); border-radius: 5px; padding: 1px 8px; font-size: 11px; cursor: pointer; transition: all 0.15s; }
+  .net-bar .net-qr-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .progress-bar { top: calc(var(--header-h) + 28px) !important; }
+  .layout { padding-top: calc(var(--header-h) + 28px + 3px) !important; }
+  .sidebar { top: calc(var(--header-h) + 28px + 3px) !important; height: calc(100vh - var(--header-h) - 28px - 3px) !important; }
+
+  /* ── QR Modal ── */
+  .qr-modal-overlay { display: none; position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.7); backdrop-filter: blur(6px); align-items: center; justify-content: center; }
+  .qr-modal-overlay.open { display: flex; }
+  .qr-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px 24px 20px; text-align: center; max-width: 280px; width: 90%; position: relative; }
+  .qr-modal h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .qr-modal p { font-size: 12px; color: var(--text2); margin-bottom: 16px; }
+  .qr-modal .qr-url { margin-top: 12px; font-family: 'SF Mono','Fira Code',monospace; font-size: 13px; color: var(--accent2); word-break: break-all; }
+  .qr-modal .qr-close { position: absolute; top: 10px; right: 12px; background: none; border: none; color: var(--text2); font-size: 18px; cursor: pointer; line-height: 1; padding: 4px; }
+  .qr-modal .qr-close:hover { color: var(--text); }
+
+  /* ── Action grid ── */
+  .action-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 4px; }
+  .action-tile { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 8px 12px; cursor: pointer; transition: all 0.15s; display: flex; flex-direction: column; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: var(--text); text-align: center; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+  .action-tile:active { transform: scale(0.96); }
+  .action-tile:hover { border-color: var(--accent); background: rgba(108,99,255,0.08); }
+  .action-tile.danger:hover { border-color: var(--danger); background: rgba(255,79,79,0.08); }
+  .action-tile .tile-icon { font-size: 22px; line-height: 1; }
+  .action-tile .tile-label { font-size: 11px; font-weight: 600; color: var(--text2); }
+  .action-tile.loading { opacity: 0.6; pointer-events: none; }
+
+  header .logo-btn { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 8px 4px 0; border-radius: 8px; transition: opacity 0.15s; -webkit-user-select: none; user-select: none; }
+  header .logo-btn:hover { opacity: 0.75; }
+  header .logo-btn:active { opacity: 0.5; }
+
+  @media (max-width: 640px) {
+    .net-bar { font-size: 11px; gap: 7px; }
+    .net-bar .net-url { font-size: 12px; }
+    .layout { padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 16px); }
+    .main { padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom) + 16px) !important; }
+    .action-grid { gap: 8px; }
+    .action-tile { padding: 12px 4px 10px; }
+    .action-tile .tile-icon { font-size: 18px; }
+    .action-tile .tile-label { font-size: 10px; }
+  }
 </style>
 </head>
 <body>
 
+<!-- QR Modal -->
+<div class="qr-modal-overlay" id="qr-overlay" onclick="closeQRIfOutside(event)">
+  <div class="qr-modal">
+    <button class="qr-close" onclick="closeQR()">✕</button>
+    <h3>Scan to Open</h3>
+    <p>Point your phone camera at this code</p>
+    <div id="qr-container" style="width:200px;height:200px;margin:0 auto;background:var(--surface2);border-radius:8px;display:flex;align-items:center;justify-content:center;">
+      <div class="spinner"></div>
+    </div>
+    <div class="qr-url" id="qr-url-label"></div>
+  </div>
+</div>
+
 <header>
-  <div class="logo">🦐</div>
-  <h1>claw-setup</h1>
+  <div class="logo-btn" onclick="goTo(0)" title="Back to System Check">
+    <div class="logo">🦐</div>
+    <h1>claw-setup</h1>
+  </div>
   <span class="header-badge">PicoClaw Wizard</span>
 </header>
 
@@ -553,6 +609,22 @@
         </div>
       </div>
       <div id="sys-alert" class="alert"></div>
+      <div class="card" id="picoclaw-update-card" style="display:none;border-color:var(--warning)">
+        <div class="card-title">PicoClaw Update Available</div>
+        <div id="update-info" style="font-size:13px;color:var(--text2);margin-bottom:12px"></div>
+        <div id="update-alert" class="alert"></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="btn-update-picoclaw" onclick="updatePicoclaw()">⬆ Update PicoClaw</button>
+        </div>
+      </div>
+      <div class="card" id="picoclaw-update-card" style="display:none;border-color:var(--warning)">
+        <div class="card-title">PicoClaw Update Available</div>
+        <div id="update-info" style="font-size:13px;color:var(--text2);margin-bottom:12px"></div>
+        <div id="update-alert" class="alert"></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="btn-update-picoclaw" onclick="updatePicoclaw()">⬆ Update PicoClaw</button>
+        </div>
+      </div>
       <div id="install-picoclaw-section">
         <div class="card" style="border-color: var(--warning)">
           <div class="card-title">PicoClaw Not Found</div>
@@ -560,6 +632,26 @@
           <div id="install-alert" class="alert"></div>
           <div class="btn-row">
             <button class="btn btn-primary" id="btn-install-picoclaw" onclick="installPicoclaw()">⬇ Install PicoClaw</button>
+          </div>
+        </div>
+      </div>
+      <div id="quick-actions" style="display:none">
+        <div class="card">
+          <div class="card-title">Quick Actions</div>
+          <div id="sys-action-alert" class="alert"></div>
+          <div class="action-grid">
+            <div class="action-tile" id="tile-restart" onclick="restartServiceFrom('sys-action-alert','tile-restart')">
+              <div class="tile-icon">↺</div>
+              <div class="tile-label">Restart Twin</div>
+            </div>
+            <div class="action-tile" onclick="goTo(1)">
+              <div class="tile-icon">⚙</div>
+              <div class="tile-label">Change Model</div>
+            </div>
+            <div class="action-tile" id="tile-ping" onclick="pingTelegramFrom('sys-action-alert','tile-ping')">
+              <div class="tile-icon">🏓</div>
+              <div class="tile-label">Ping Bot</div>
+            </div>
           </div>
         </div>
       </div>
@@ -596,7 +688,6 @@
           <label>API Key</label>
           <input type="password" id="llm-key" placeholder="Paste your API key here" autocomplete="off" oninput="onKeyInput()" />
           <div class="hint" id="llm-key-hint">Get your free key at <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--accent2)">openrouter.ai/keys</a></div>
-          <div id="saved-key-hint" class="hint" style="display:none; color:var(--accent2)">✓ Using saved key — paste a new key above to update it</div>
         </div>
         <div class="form-group" id="model-group">
           <label>Model</label>
@@ -749,7 +840,7 @@
           <div class="status-row"><span>Loading...</span></div>
         </div>
       </div>
-      <div class="card">
+      <div class="card" id="service-install-card">
         <div class="card-title">Install as System Service</div>
         <p style="font-size:13px; color:var(--text2); margin-bottom:14px">This sets PicoClaw to start automatically on boot and restart if it crashes.</p>
         <div id="service-alert" class="alert"></div>
@@ -764,10 +855,25 @@
             <div style="font-size:44px; margin-bottom:10px">🎉</div>
             <div style="font-size:18px; font-weight:700; margin-bottom:6px">Your twin is live!</div>
             <div style="color:var(--text2); font-size:13px; margin-bottom:16px">Open Telegram and send your bot a message. It will respond as you.</div>
+            <div id="action-alert" class="alert" style="text-align:left; margin-bottom:10px"></div>
+            <div class="action-grid" style="margin-bottom:16px">
+              <div class="action-tile" id="tile-launch-restart" onclick="restartServiceFrom('action-alert','tile-launch-restart')">
+                <div class="tile-icon">↺</div>
+                <div class="tile-label">Restart Twin</div>
+              </div>
+              <div class="action-tile" onclick="goTo(1)">
+                <div class="tile-icon">⚙</div>
+                <div class="tile-label">Change Model</div>
+              </div>
+              <div class="action-tile" id="tile-launch-ping" onclick="pingTelegramFrom('action-alert','tile-launch-ping')">
+                <div class="tile-icon">🏓</div>
+                <div class="tile-label">Ping Bot</div>
+              </div>
+            </div>
             <div class="cmd-block">
-              <div class="cmd-hint">Useful commands on your Pi:</div>
-              <code>systemctl --user status picoclaw</code>
-              <code>systemctl --user restart picoclaw</code>
+              <div class="cmd-hint" id="cmd-hint">Useful commands:</div>
+              <code id="cmd-status"></code>
+              <code id="cmd-restart"></code>
               <code>picoclaw agent -m "hello"</code>
             </div>
           </div>
@@ -775,38 +881,156 @@
       </div>
     </div>
 
-    <!-- ── STEP 5: Connected Tools ───────────────────────────────── -->
+    <!-- STEP 5: Connected Tools -->
     <div class="section" id="step-5">
       <h2>Connected Tools</h2>
-      <p class="subtitle">Extend your twin with Gmail, Google Calendar, and more. The wizard builds and registers each tool automatically — no terminal needed.</p>
+      <p class="subtitle">Connect your email and calendar so your agent can read, summarise and brief you daily.</p>
 
-      <div id="tools-list">
-        <div class="card">
-          <div class="status-row" style="border:none">
-            <span class="status-label">Loading tools...</span>
-            <div class="spinner"></div>
+      <!-- Credentials status card -->
+      <div class="card" id="creds-card">
+        <div class="card-title">Google OAuth</div>
+        <div class="status-row">
+          <span class="status-label">ClawTools OAuth config</span>
+          <div class="status-right">
+            <span class="badge ok">✓ Ready</span>
           </div>
         </div>
+        <p style="font-size:12px;color:var(--text2);margin-top:8px">OAuth credentials are served securely — no setup needed. Click Add Account to connect.</p>
       </div>
 
-      <div id="tools-global-alert" class="alert"></div>
-
+      <!-- Tools grid -->
       <div class="card">
-        <div class="card-title">After Connecting Tools</div>
-        <p style="font-size:13px; color:var(--text2); line-height:1.6; margin-bottom:12px">
-          Restart your twin so it picks up the new tools. Then message your bot on Telegram:
-        </p>
-        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px">
-          <code style="background:var(--surface2); padding:4px 10px; border-radius:6px; color:var(--accent2); font-size:12px">"Show me my last 5 emails"</code>
-          <code style="background:var(--surface2); padding:4px 10px; border-radius:6px; color:var(--accent2); font-size:12px">"What's on my calendar today?"</code>
+        <div class="card-title">Available Tools</div>
+        <div id="tools-loading" style="padding:12px 0;color:var(--text2);font-size:13px">
+          <div class="spinner" style="display:inline-block;margin-right:8px"></div> Loading tools registry...
         </div>
-        <div id="tools-restart-alert" class="alert"></div>
-        <div class="btn-row">
-          <button class="btn btn-secondary" onclick="loadTools()">↻ Refresh</button>
-          <button class="btn btn-primary" onclick="restartAfterTools()">↺ Restart Twin</button>
+        <div id="tools-grid" style="display:none"></div>
+      </div>
+
+      <!-- Connected accounts -->
+      <div class="card" id="accounts-card" style="display:none">
+        <div class="card-title">Connected Accounts</div>
+        <div id="accounts-list"></div>
+        <div class="btn-row" style="margin-top:12px">
+          <button class="btn btn-primary" onclick="startOAuth()">＋ Add Account</button>
         </div>
+      </div>
+
+      <!-- OAuth in-progress -->
+      <div class="card" id="oauth-progress-card" style="display:none;border-color:var(--accent)">
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0">
+          <div class="spinner"></div>
+          <span style="font-size:13px">Waiting for Google authorization in browser...</span>
+        </div>
+        <p style="font-size:12px;color:var(--text2);margin-top:8px">A browser window opened on your Pi. Sign in and approve access, then return here.</p>
+        <div id="oauth-alert" class="alert"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="loadTools()">↻ Refresh</button>
       </div>
     </div>
+
+    <!-- STEP 5: Connected Tools -->
+    <div class="section" id="step-5">
+      <h2>Connected Tools</h2>
+      <p class="subtitle">Connect your email and calendar so your agent can read, summarise and brief you daily.</p>
+
+      <!-- Credentials status card -->
+      <div class="card" id="creds-card">
+        <div class="card-title">Google OAuth</div>
+        <div class="status-row">
+          <span class="status-label">ClawTools OAuth config</span>
+          <div class="status-right">
+            <span class="badge ok">✓ Ready</span>
+          </div>
+        </div>
+        <p style="font-size:12px;color:var(--text2);margin-top:8px">OAuth credentials are served securely — no setup needed. Click Add Account to connect.</p>
+      </div>
+
+      <!-- Tools grid -->
+      <div class="card">
+        <div class="card-title">Available Tools</div>
+        <div id="tools-loading" style="padding:12px 0;color:var(--text2);font-size:13px">
+          <div class="spinner" style="display:inline-block;margin-right:8px"></div> Loading tools registry...
+        </div>
+        <div id="tools-grid" style="display:none"></div>
+      </div>
+
+      <!-- Connected accounts -->
+      <div class="card" id="accounts-card" style="display:none">
+        <div class="card-title">Connected Accounts</div>
+        <div id="accounts-list"></div>
+        <div class="btn-row" style="margin-top:12px">
+          <button class="btn btn-primary" onclick="startOAuth()">＋ Add Account</button>
+        </div>
+      </div>
+
+      <!-- OAuth in-progress -->
+      <div class="card" id="oauth-progress-card" style="display:none;border-color:var(--accent)">
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0">
+          <div class="spinner"></div>
+          <span style="font-size:13px">Waiting for Google authorization in browser...</span>
+        </div>
+        <p style="font-size:12px;color:var(--text2);margin-top:8px">A browser window opened on your Pi. Sign in and approve access, then return here.</p>
+        <div id="oauth-alert" class="alert"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="loadTools()">↻ Refresh</button>
+      </div>
+    </div>
+
+    <!-- STEP 5: Connected Tools -->
+    <div class="section" id="step-5">
+      <h2>Connected Tools</h2>
+      <p class="subtitle">Connect your email and calendar so your agent can read, summarise and brief you daily.</p>
+
+      <!-- OAuth status -->
+      <div class="card">
+        <div class="card-title">Google OAuth</div>
+        <div class="status-row">
+          <div class="status-left">
+            <span class="status-label">ClawTools OAuth config</span>
+            <span class="status-detail">Served securely from claw-tools.dev</span>
+          </div>
+          <span class="badge ok">✓ Ready</span>
+        </div>
+      </div>
+
+      <!-- Tools grid -->
+      <div class="card">
+        <div class="card-title">Available Tools</div>
+        <div id="tools-loading" style="padding:12px 0;color:var(--text2);font-size:13px">
+          <div class="spinner" style="display:inline-block;margin-right:8px"></div> Loading tools registry...
+        </div>
+        <div id="tools-grid" style="display:none"></div>
+      </div>
+
+      <!-- Connected accounts -->
+      <div class="card" id="accounts-card" style="display:none">
+        <div class="card-title">Connected Accounts</div>
+        <div id="accounts-list"></div>
+        <div class="btn-row" style="margin-top:12px">
+          <button class="btn btn-primary" onclick="startOAuth()">＋ Add Account</button>
+        </div>
+      </div>
+
+      <!-- OAuth in-progress -->
+      <div class="card" id="oauth-progress-card" style="display:none;border-color:var(--accent)">
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0">
+          <div class="spinner"></div>
+          <span style="font-size:13px">Waiting for Google authorization in browser...</span>
+        </div>
+        <p style="font-size:12px;color:var(--text2);margin-top:8px">A browser window opened on your Pi. Sign in and approve access, then return here.</p>
+        <div id="oauth-alert" class="alert"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="loadTools()">↻ Refresh</button>
+      </div>
+    </div>
+
 
   </main>
 </div>
@@ -844,7 +1068,7 @@ let currentStep = 0;
 let selectedProvider = 'openrouter';
 let systemData = {};
 let state = { system: false, llm: false, telegram: false, soul: false, service: false, tools: false };
-const progress = [10, 30, 55, 75, 90, 100];
+const progress = [10, 30, 50, 70, 88, 100];
 
 const providerModels = {
   openrouter: {
@@ -925,6 +1149,9 @@ async function runSystemCheck() {
   const r = await fetch('/api/system-check');
   const data = await r.json();
   systemData = data;
+  const isMac = data.os === 'mac';
+  const el_soul = document.getElementById('btn-save-soul'); if(el_soul) el_soul.textContent = isMac ? 'Save to Mac' : 'Save to Device';
+  const el_svc = document.getElementById('service-desc'); if(el_svc) el_svc.textContent = isMac ? 'This installs a launchd agent so PicoClaw starts automatically on login.' : 'This installs a systemd service so PicoClaw starts automatically on boot.';
 
   const rows = [
     ['PicoClaw', data.picoclaw_installed, data.picoclaw_version || 'Not found'],
@@ -978,52 +1205,32 @@ function selectProvider(p) {
     document.getElementById('llm-model').innerHTML = info.models
       .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
   }
-  // Don't clear key — update hint and button state based on saved key presence
-  updateKeyState();
-}
-
-// Returns true if we have a saved key for the currently selected provider
-function hasSavedKey() {
-  return !!(systemData.has_provider && systemData.active_provider === selectedProvider);
-}
-
-// Syncs the saved-key hint, Load Models button, and Validate button label
-function updateKeyState() {
-  const saved = hasSavedKey();
-  const typed = document.getElementById('llm-key').value.trim().length >= 10;
-  const hint  = document.getElementById('saved-key-hint');
-  if (hint) hint.style.display = (saved && !typed) ? 'block' : 'none';
-  document.getElementById('btn-load-models').disabled = !saved && !typed;
-  document.getElementById('btn-validate-llm').textContent = saved ? 'Save Model' : 'Validate Key';
+  document.getElementById('llm-key').value = '';
+  hideAlert('llm-alert');
 }
 
 async function validateLLM() {
-  const key   = document.getElementById('llm-key').value.trim();
+  const key = document.getElementById('llm-key').value.trim();
   const model = document.getElementById('llm-model').value;
-  if (!model) { showAlert('llm-alert', 'error', 'Please select a model'); return; }
-  if (!key && !hasSavedKey()) { showAlert('llm-alert', 'error', 'Please enter your API key'); return; }
+  if (!key) { showAlert('llm-alert', 'error', 'Please enter your API key'); return; }
 
   const btn = document.getElementById('btn-validate-llm');
-  btn.innerHTML = '<div class="spinner"></div> Saving...';
+  btn.innerHTML = '<div class="spinner"></div> Validating...';
   btn.disabled = true;
 
   const fd = new FormData();
-  fd.append('provider', selectedProvider);
+  fd.append('provider', selectedProvider || 'openrouter');
+  fd.append('api_key', key);
   fd.append('model', model);
-  if (key) fd.append('api_key', key); // only send if user typed a new one — backend falls back to saved
 
-  const r    = await fetch('/api/validate-llm', { method: 'POST', body: fd });
+  const r = await fetch('/api/validate-llm', { method: 'POST', body: fd });
   const data = await r.json();
 
-  btn.innerHTML = hasSavedKey() ? 'Save Model' : 'Validate Key';
+  btn.innerHTML = 'Validate Key';
   btn.disabled = false;
 
   if (data.ok) {
-    systemData.has_provider    = true;
-    systemData.active_provider = selectedProvider;
-    systemData.active_model    = model;
-    updateKeyState();
-    showAlert('llm-alert', 'success', `✓ ${data.message} — using ${model}`);
+    showAlert('llm-alert', 'success', '✓ ' + data.message + ` - using ${model}`);
     document.getElementById('btn-llm-next').disabled = false;
     markDone(1); state.llm = true;
   } else {
@@ -1124,6 +1331,14 @@ async function loadFinalChecklist() {
       <span class="check">${ok ? '✅' : '⭕'}</span>
       <span>${label}</span>
     </div>`).join('');
+
+  // If service already running — hide install card, show success
+  if (data.service_status === 'active') {
+    document.getElementById('service-install-card').style.display = 'none';
+    document.getElementById('launch-success').style.display = 'block';
+    document.getElementById('progress').style.width = '100%';
+    markDone(4);
+  }
 }
 
 async function installService() {
@@ -1131,12 +1346,16 @@ async function installService() {
   const r = await fetch('/api/install-service', { method: 'POST' });
   const data = await r.json();
   if (data.ok) {
-    showAlert('service-alert', 'success', '✓ ' + data.message);
+    document.getElementById('service-install-card').style.display = 'none';
     document.getElementById('launch-success').style.display = 'block';
     document.getElementById('progress').style.width = '100%';
     markDone(4); state.service = true;
-    loadFinalChecklist();
-  } else { showAlert('service-alert', 'error', '✗ ' + data.message); }
+    // Wait 2s for systemd to actually start before re-checking status
+    setTimeout(() => loadFinalChecklist(), 2000);
+  } else {
+    showAlert('service-alert', 'error', '✗ ' + data.message);
+    document.getElementById('service-install-card').style.display = 'block';
+  }
 }
 
 function populateLLM() {
@@ -1150,18 +1369,16 @@ function populateLLM() {
     if (!found) {
       const opt = document.createElement('option');
       opt.value = systemData.active_model;
-      opt.text  = systemData.active_model + ' (current)';
+      opt.text = systemData.active_model + ' (current)';
       opt.selected = true;
       sel.insertBefore(opt, sel.firstChild);
     }
   }
   if (systemData.has_provider) {
-    showAlert('llm-alert', 'success',
-      `✓ Already configured — model: ${systemData.active_model}. Click Load Models to switch, or just Continue.`);
+    showAlert('llm-alert', 'success', '✓ Already configured — model: ' + systemData.active_model);
     document.getElementById('btn-llm-next').disabled = false;
     markDone(1);
   }
-  updateKeyState(); // enables Load Models immediately if key already saved
 }
 
 function populateTelegram() {
@@ -1202,17 +1419,15 @@ async function installPicoclaw() {
 
 let allModels = [];
 function onKeyInput() {
-  updateKeyState(); // re-evaluate based on typed key + saved key
+  document.getElementById('btn-load-models').disabled = document.getElementById('llm-key').value.trim().length < 10;
 }
 async function loadModels() {
   const key = document.getElementById('llm-key').value.trim();
   const btn = document.getElementById('btn-load-models');
   btn.innerHTML = '<div class="spinner"></div>';
   btn.disabled = true;
-  const fd = new FormData();
-  fd.append('provider', selectedProvider);
-  if (key) fd.append('api_key', key); // omit if empty — backend uses saved key
-  const r    = await fetch('/api/models', { method: 'POST', body: fd });
+  const fd = new FormData(); fd.append('provider', selectedProvider); fd.append('api_key', key);
+  const r = await fetch('/api/models', { method: 'POST', body: fd });
   const data = await r.json();
   btn.innerHTML = '↻ Load Models'; btn.disabled = false;
   if (!data.ok) { showAlert('llm-alert', 'error', '✗ ' + data.message); return; }
@@ -1226,127 +1441,253 @@ function filterModels() {
   sel.innerHTML = filtered.map(m => `<option value="${m.id}">${m.name}${m.free ? ' 🆓' : ''}</option>`).join('');
 }
 
-// ── Step 5: Connected Tools ───────────────────────────────────────────────────
-async function loadTools() {
-  document.getElementById('tools-list').innerHTML = `
-    <div class="card">
-      <div class="status-row" style="border:none">
-        <span class="status-label">Checking tool status...</span>
-        <div class="spinner"></div>
-      </div>
-    </div>`;
-
-  const r    = await fetch('/api/tools/status');
+// ── PicoClaw version check ────────────────────────────────────────────────────
+async function checkPicoClawVersion() {
+  const r = await fetch('/api/picoclaw/version');
   const data = await r.json();
-
-  if (!data.ok || !data.tools) {
-    document.getElementById('tools-list').innerHTML = `
-      <div class="card">
-        <p style="color:var(--danger); font-size:13px">✗ Could not load tools. Is the wizard running correctly?</p>
-      </div>`;
-    return;
+  if (data.update_available) {
+    document.getElementById('picoclaw-update-card').style.display = 'block';
+    document.getElementById('update-info').textContent =
+      `Current: ${data.current}  →  Latest: ${data.latest}`;
   }
-
-  const anyReady = data.tools.some(t => t.installed && t.registered);
-  if (anyReady) { markDone(5); state.tools = true; }
-
-  document.getElementById('tools-list').innerHTML = data.tools.map(tool => `
-    <div class="tool-card ${tool.installed && tool.registered ? 'ready' : ''}" id="tool-card-${tool.id}">
-      <div class="tool-card-header">
-        <div class="tool-card-title">
-          <span>${tool.icon}</span>
-          <span>${tool.name}</span>
-        </div>
-        <span class="badge ${tool.installed && tool.registered ? 'ok' : 'pending'}">
-          ${tool.installed && tool.registered ? '✓ Ready' : '○ Not installed'}
-        </span>
-      </div>
-      <div class="tool-card-desc">${tool.description}</div>
-      ${tool.installed && tool.registered
-        ? `<div class="tool-binary">Binary: <code>${tool.binary_path}</code></div>
-           <div class="btn-row">
-             <button class="btn btn-danger" style="font-size:12px;padding:6px 12px" onclick="uninstallTool('${tool.id}')">Remove</button>
-           </div>`
-        : `<div class="btn-row">
-             <button class="btn btn-primary" id="btn-install-${tool.id}" onclick="installTool('${tool.id}')">
-               ⬇ Install ${tool.name}
-             </button>
-           </div>`
-      }
-      <div id="tool-alert-${tool.id}" class="alert" style="margin-top:8px"></div>
-    </div>
-  `).join('');
 }
 
-async function installTool(toolId) {
-  const btn     = document.getElementById(`btn-install-${toolId}`);
-  const alertEl = document.getElementById(`tool-alert-${toolId}`);
-  const steps   = [
-    'Cloning repository...',
-    'Building binary (~30s)...',
-    'Verifying MCP handshake...',
-    'Registering with PicoClaw...'
-  ];
+async function updatePicoclaw() {
+  const btn = document.getElementById('btn-update-picoclaw');
+  btn.innerHTML = '<div class="spinner"></div> Updating...';
   btn.disabled = true;
-  let stepIdx = 0;
-  btn.innerHTML = `<div class="spinner"></div> ${steps[0]}`;
-  const stepTimer = setInterval(() => {
-    stepIdx = Math.min(stepIdx + 1, steps.length - 1);
-    btn.innerHTML = `<div class="spinner"></div> ${steps[stepIdx]}`;
-  }, 8000);
-  try {
-    const fd = new FormData();
-    fd.append('tool_id', toolId);
-    const r    = await fetch('/api/tools/install', { method: 'POST', body: fd });
-    const data = await r.json();
-    clearInterval(stepTimer);
-    if (data.ok) {
-      alertEl.className = 'alert success visible';
-      alertEl.textContent = '✓ ' + data.message;
-      setTimeout(() => loadTools(), 1200);
-    } else {
-      alertEl.className = 'alert error visible';
-      alertEl.textContent = '✗ ' + data.message;
-      btn.innerHTML = '⬇ Retry';
-      btn.disabled = false;
-    }
-  } catch (e) {
-    clearInterval(stepTimer);
-    alertEl.className = 'alert error visible';
-    alertEl.textContent = '✗ Network error — check the wizard is still running';
-    btn.innerHTML = '⬇ Retry';
+  const r = await fetch('/api/picoclaw/update', { method: 'POST' });
+  const data = await r.json();
+  if (data.ok) {
+    showAlert('update-alert', 'success', '✓ ' + data.message);
+  } else {
+    showAlert('update-alert', 'error', '✗ ' + data.message);
+    btn.innerHTML = '⬆ Retry Update';
     btn.disabled = false;
   }
 }
 
-async function uninstallTool(toolId) {
-  if (!confirm('Remove this tool from PicoClaw config? The binary stays on disk.')) return;
-  const fd = new FormData(); fd.append('tool_id', toolId);
-  const r    = await fetch('/api/tools/uninstall', { method: 'POST', body: fd });
-  const data = await r.json();
-  if (data.ok) loadTools();
-  else showAlert('tools-global-alert', 'error', '✗ ' + data.message);
+
+// ── Network bar & QR ─────────────────────────────────────────────
+let localIP = '';
+
+async function initNetBar() {
+  try {
+    const r = await fetch('/api/local-ip');
+    const data = await r.json();
+    localIP = data.ip || window.location.hostname;
+  } catch(e) { localIP = window.location.hostname; }
+  const url = `http://${localIP}:3000`;
+  document.getElementById('net-url-text').textContent = url;
+  document.getElementById('net-bar').style.display = 'flex';
 }
 
-async function restartAfterTools() {
-  const alertEl = document.getElementById('tools-restart-alert');
-  alertEl.className = 'alert info visible';
-  alertEl.textContent = 'Restarting twin...';
-  const r    = await fetch('/api/restart-service', { method: 'POST' });
+function copyNetUrl() {
+  const url = `http://${localIP}:3000`;
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById('net-copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 1800);
+  }).catch(() => { prompt('Copy this URL:', url); });
+}
+
+function openQR() {
+  const url = `http://${localIP}:3000`;
+  document.getElementById('qr-url-label').textContent = url;
+  document.getElementById('qr-overlay').classList.add('open');
+  const container = document.getElementById('qr-container');
+  container.innerHTML = '<div class="spinner"></div>';
+  const img = new Image();
+  img.width = 200; img.height = 200;
+  img.style.cssText = 'border-radius:8px;display:block';
+  img.onload = () => { container.innerHTML = ''; container.appendChild(img); };
+  img.onerror = () => { container.innerHTML = ''; renderQRCanvas(container, url); };
+  img.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&color=ffffff&bgcolor=1a1d27&data=${encodeURIComponent(url)}`;
+}
+
+function renderQRCanvas(container, text) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 200; canvas.height = 200;
+  canvas.style.borderRadius = '8px';
+  container.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#1a1d27'; ctx.fillRect(0,0,200,200);
+  ctx.fillStyle = '#ffffff'; ctx.font = '11px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('QR needs internet', 100, 90);
+  ctx.fillText('to generate.', 100, 108);
+  ctx.fillStyle = '#00d4aa'; ctx.font = '10px monospace';
+  ctx.fillText('URL copied to clipboard', 100, 135);
+  navigator.clipboard.writeText(text).catch(()=>{});
+}
+
+function closeQR() { document.getElementById('qr-overlay').classList.remove('open'); }
+function closeQRIfOutside(e) { if (e.target === document.getElementById('qr-overlay')) closeQR(); }
+
+function populateOSCommands(isMac) {
+  document.getElementById('cmd-hint').textContent = isMac ? 'Useful commands on your Mac:' : 'Useful commands on your Pi:';
+  document.getElementById('cmd-status').textContent = isMac ? 'launchctl list | grep picoclaw' : 'systemctl --user status picoclaw';
+  document.getElementById('cmd-restart').textContent = isMac
+    ? 'launchctl unload ~/Library/LaunchAgents/com.picoclaw.agent.plist && launchctl load ~/Library/LaunchAgents/com.picoclaw.agent.plist'
+    : 'systemctl --user restart picoclaw';
+}
+
+// Init
+initNetBar();
+runSystemCheck();
+checkPicoClawVersion();
+
+// ── Step 5: Connected Tools ───────────────────────────────────────
+
+let oauthPollInterval = null;
+
+const categoryIcon = { email: '✉️', calendar: '📅', utility: '🔧' };
+
+async function loadTools() {
+  // Refresh TOOLS.md, SKILL.md and MCP config on Pi whenever user hits refresh
+  fetch('/api/tools/refresh', { method: 'POST' });
+
+  document.getElementById('tools-loading').style.display = 'block';
+  document.getElementById('tools-grid').style.display = 'none';
+
+  const r = await fetch('/api/tools');
   const data = await r.json();
-  if (data.ok) {
-    alertEl.className = 'alert success visible';
-    alertEl.textContent = '✓ Twin restarted — tools are now active';
-    setTimeout(() => { alertEl.className = 'alert'; }, 4000);
-  } else {
-    alertEl.className = 'alert error visible';
-    alertEl.textContent = '✗ ' + data.message;
+
+  document.getElementById('tools-loading').style.display = 'none';
+
+  if (!data.ok) {
+    document.getElementById('tools-loading').innerHTML =
+      `<span style="color:var(--danger)">✗ Could not load tools registry: ${data.message}</span>`;
+    document.getElementById('tools-loading').style.display = 'block';
+    return;
+  }
+
+  const grid = document.getElementById('tools-grid');
+  grid.style.display = 'block';
+  grid.innerHTML = data.tools.map(t => {
+    const available = t.status === 'available';
+    const icon = categoryIcon[t.category] || '🔧';
+    const authBadge = t.requires_auth && t.requires_auth.length > 0
+      ? `<span style="font-size:10px;background:rgba(108,99,255,0.15);color:var(--accent);padding:2px 7px;border-radius:20px;margin-left:6px">OAuth</span>`
+      : '';
+    const connectedBadge = t.connected
+      ? `<span style="font-size:10px;background:rgba(0,212,170,0.15);color:var(--success);padding:2px 7px;border-radius:20px;margin-left:4px">✓ Connected</span>`
+      : '';
+    const comingSoon = !available
+      ? `<span style="font-size:10px;background:var(--surface2);color:var(--text2);padding:2px 7px;border-radius:20px;margin-left:4px">Coming soon</span>`
+      : '';
+
+    return `
+    <div style="padding:12px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <span style="font-size:16px">${icon}</span>
+        <span style="font-size:14px;font-weight:600">${t.name}</span>
+        ${authBadge}${connectedBadge}${comingSoon}
+      </div>
+      <p style="font-size:12px;color:var(--text2);margin:0 0 6px 24px">${t.description}</p>
+      <div style="margin-left:24px;display:flex;gap:6px;flex-wrap:wrap">
+        ${t.mcp_tools.map(m => `<code style="font-size:10px;background:var(--surface2);color:var(--accent2);padding:1px 6px;border-radius:4px">${m}</code>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Show accounts card if any google tool exists
+  const hasGoogle = data.tools.some(t => t.requires_auth && t.requires_auth.includes('google_oauth2'));
+  if (hasGoogle) {
+    document.getElementById('accounts-card').style.display = 'block';
+    renderAccounts(data.tools[0]?.accounts || []);
+    if (data.tools.some(t => t.connected)) {
+      markDone(5);
+      state.tools = true;
+    }
   }
 }
 
-// ── Init ──────────────────────────────────────────────────────────────────────
-runSystemCheck();
-checkPicoClawVersion();
+function renderAccounts(accounts) {
+  const list = document.getElementById('accounts-list');
+  if (!accounts || accounts.length === 0) {
+    list.innerHTML = `<p style="font-size:13px;color:var(--text2);padding:8px 0">No accounts connected yet.</p>`;
+    return;
+  }
+  list.innerHTML = accounts.map(a => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div>
+        <div style="font-size:13px;font-weight:600">${a.email}</div>
+        <div style="font-size:11px;color:var(--text2)">Added ${new Date(a.added_at).toLocaleDateString()}</div>
+      </div>
+      <button class="btn btn-secondary" style="font-size:11px;padding:5px 10px"
+        onclick="revokeAccount('${a.email}')">Revoke</button>
+    </div>`).join('');
+}
+
+async function checkCredentials() {
+  const r = await fetch('/api/oauth/creds-status');
+  const data = await r.json();
+  const row = document.getElementById('creds-status-row');
+  const missing = document.getElementById('creds-missing');
+  if (data.exists) {
+    row.innerHTML = `
+      <span class="status-label">google_credentials.json</span>
+      <div class="status-right">
+        <span class="badge ok">✓ Found</span>
+      </div>`;
+    missing.style.display = 'none';
+    document.getElementById('accounts-card').style.display = 'block';
+  } else {
+    row.innerHTML = `
+      <span class="status-label">google_credentials.json</span>
+      <div class="status-right">
+        <span class="badge warn">○ Missing</span>
+      </div>`;
+    missing.style.display = 'block';
+  }
+}
+
+async function startOAuth() {
+  document.getElementById('oauth-progress-card').style.display = 'block';
+  hideAlert('oauth-alert');
+
+  const r = await fetch('/api/oauth/start', { method: 'POST' });
+  const data = await r.json();
+  if (!data.ok) {
+    showAlert('oauth-alert', 'error', '✗ ' + data.message);
+    document.getElementById('oauth-progress-card').style.display = 'none';
+    return;
+  }
+
+  // Poll for completion
+  oauthPollInterval = setInterval(pollOAuthStatus, 2000);
+}
+
+async function pollOAuthStatus() {
+  const r = await fetch('/api/oauth/status');
+  const data = await r.json();
+
+  if (data.status === 'pending') return; // still waiting
+
+  clearInterval(oauthPollInterval);
+  document.getElementById('oauth-progress-card').style.display = 'none';
+
+  if (data.ok && data.status === 'connected') {
+    showAlert('oauth-alert', 'success', `✓ ${data.email} connected`);
+    document.getElementById('oauth-progress-card').style.display = 'block';
+    setTimeout(() => {
+      document.getElementById('oauth-progress-card').style.display = 'none';
+      loadTools();
+    }, 2000);
+  } else {
+    showAlert('oauth-alert', 'error', '✗ ' + (data.message || 'Authorization failed'));
+    document.getElementById('oauth-progress-card').style.display = 'block';
+  }
+}
+
+async function revokeAccount(email) {
+  if (!confirm(`Remove ${email}?`)) return;
+  const fd = new FormData();
+  fd.append('email', email);
+  const r = await fetch('/api/oauth/revoke', { method: 'POST', body: fd });
+  const data = await r.json();
+  if (data.ok) loadTools();
+}
 </script>
 </body>
 </html>
