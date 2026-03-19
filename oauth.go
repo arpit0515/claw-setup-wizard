@@ -25,15 +25,11 @@ import (
 
 const (
 	toolsRegistryURL  = "https://raw.githubusercontent.com/arpit0515/claw-tools.dev/refs/heads/main/tools.json"
+	toolsRepoCloneURL = "https://github.com/arpit0515/claw-tools.dev.git"
 	oauthConfigURL    = "https://claw-tools.dev/api/oauth-config"
 	oauthCallbackPort = "3455"
 )
 
-// clawAPISecret is injected at build time:
-//
-//	go build -ldflags "-X main.clawAPISecret=your-secret-here"
-//
-// Never hardcode the real value here.
 var clawAPISecret = ""
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -70,6 +66,18 @@ func tokensDir() string {
 func tokenFileForEmail(email string) string {
 	safe := strings.ReplaceAll(email, "/", "_")
 	return filepath.Join(tokensDir(), safe+".enc")
+}
+
+// toolsRepoDir returns ~/claw-tools.dev — the local clone of the tools repo.
+func toolsRepoDir() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, "claw-tools.dev")
+}
+
+// toolBinaryPath returns the path to the compiled binary for a tool.
+// e.g. ~/claw-tools.dev/tools/gmail/gmail-mcp
+func toolBinaryPath(t ClawTool) string {
+	return filepath.Join(toolsRepoDir(), t.Dir, t.ID+"-mcp")
 }
 
 // ── Encryption ────────────────────────────────────────────────────────────────
@@ -198,8 +206,6 @@ type oauthConfigResp struct {
 	ClientSecret string `json:"client_secret"`
 }
 
-// fetchOAuthConfig fetches client_id + client_secret from claw-tools.dev/api/oauth-config.
-// The secret is never stored on disk — used in memory during the auth flow only.
 func fetchOAuthConfig() (*oauthConfigResp, error) {
 	req, err := http.NewRequest("GET", oauthConfigURL, nil)
 	if err != nil {
@@ -221,7 +227,6 @@ func fetchOAuthConfig() (*oauthConfigResp, error) {
 	case 429:
 		return nil, fmt.Errorf("rate limit exceeded — try again later")
 	case 200:
-		// ok
 	default:
 		return nil, fmt.Errorf("oauth config server error: %d", resp.StatusCode)
 	}
@@ -302,13 +307,11 @@ var activeFlow *oauthFlowState
 
 // ── HTTP Handlers ─────────────────────────────────────────────────────────────
 
-// GET/POST /api/tools/refresh — re-run auto-configure from tools registry
 func handleToolsRefresh(w http.ResponseWriter, r *http.Request) {
 	go autoConfigureFromRegistry()
 	okResponse(w, "Tools refreshed — SKILL.md and MCP config updated", nil)
 }
 
-// GET /api/tools
 func handleGetTools(w http.ResponseWriter, r *http.Request) {
 	tools, err := fetchToolsRegistry()
 	if err != nil {
@@ -320,12 +323,16 @@ func handleGetTools(w http.ResponseWriter, r *http.Request) {
 	type toolWithStatus struct {
 		ClawTool
 		Connected bool               `json:"connected"`
+		Installed bool               `json:"installed"`
 		Accounts  []ConnectedAccount `json:"accounts,omitempty"`
 	}
 
 	result := make([]toolWithStatus, 0, len(tools))
 	for _, t := range tools {
 		ts := toolWithStatus{ClawTool: t}
+		if _, err := os.Stat(toolBinaryPath(t)); err == nil {
+			ts.Installed = true
+		}
 		if len(t.RequiresAuth) > 0 && t.RequiresAuth[0] == "google_oauth2" {
 			ts.Accounts = accounts
 			ts.Connected = len(accounts) > 0
@@ -335,7 +342,6 @@ func handleGetTools(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, map[string]interface{}{"ok": true, "tools": result})
 }
 
-// POST /api/oauth/start
 func handleOAuthStart(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
@@ -379,7 +385,6 @@ func handleOAuthStart(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GET /oauth/callback — Google redirects here
 func handleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	if activeFlow == nil {
 		http.Error(w, "No active OAuth flow", http.StatusBadRequest)
@@ -401,7 +406,6 @@ func handleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	activeFlow.codeCh <- code
 }
 
-// GET /api/oauth/status — poll after /api/oauth/start
 func handleOAuthStatus(w http.ResponseWriter, r *http.Request) {
 	if activeFlow == nil {
 		jsonResponse(w, map[string]interface{}{"ok": false, "status": "no_flow"})
@@ -429,11 +433,13 @@ func handleOAuthStatus(w http.ResponseWriter, r *http.Request) {
 			errorResponse(w, "Could not save token: "+err.Error())
 			return
 		}
-		// Auto-configure tools and install services from tools.json
+		// Clone + build + configure in background so OAuth response is instant
 		go autoConfigureFromRegistry()
 		jsonResponse(w, map[string]interface{}{
-			"ok": true, "status": "connected",
-			"email": email, "message": "Account connected: " + email,
+			"ok":      true,
+			"status":  "connected",
+			"email":   email,
+			"message": "Account connected: " + email + " — installing tools in background...",
 		})
 	case err := <-activeFlow.errCh:
 		activeFlow = nil
@@ -443,7 +449,6 @@ func handleOAuthStatus(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// GET /api/oauth/accounts
 func handleOAuthAccounts(w http.ResponseWriter, r *http.Request) {
 	accounts, err := listConnectedAccounts()
 	if err != nil {
@@ -453,7 +458,6 @@ func handleOAuthAccounts(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, map[string]interface{}{"ok": true, "accounts": accounts})
 }
 
-// POST /api/oauth/revoke
 func handleOAuthRevoke(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
@@ -480,7 +484,6 @@ func handleOAuthRevoke(w http.ResponseWriter, r *http.Request) {
 	okResponse(w, "Account "+email+" removed", nil)
 }
 
-// GET /api/oauth/creds-status — verify Vercel endpoint is reachable
 func handleCredsStatus(w http.ResponseWriter, r *http.Request) {
 	_, err := fetchOAuthConfig()
 	errMsg := ""
@@ -494,11 +497,75 @@ func handleCredsStatus(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// ── Auto-configure from tools registry ───────────────────────────────────────
+// ── Tool installation ─────────────────────────────────────────────────────────
+
+// ensureToolsRepo clones claw-tools.dev if not present, or pulls latest if it is.
+func ensureToolsRepo() error {
+	repoDir := toolsRepoDir()
+
+	if _, err := os.Stat(filepath.Join(repoDir, ".git")); err == nil {
+		fmt.Fprintf(os.Stderr, "tools-repo: pulling latest...\n")
+		cmd := exec.Command("git", "-C", repoDir, "pull", "--ff-only")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			// Non-fatal — continue with whatever version we have
+			fmt.Fprintf(os.Stderr, "tools-repo: pull warning: %s\n", strings.TrimSpace(string(out)))
+		}
+		return nil
+	}
+
+	fmt.Fprintf(os.Stderr, "tools-repo: cloning %s...\n", toolsRepoCloneURL)
+	cmd := exec.Command("git", "clone", "--depth=1", toolsRepoCloneURL, repoDir)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("git clone failed: %s", strings.TrimSpace(string(out)))
+	}
+	fmt.Fprintf(os.Stderr, "tools-repo: cloned to %s\n", repoDir)
+	return nil
+}
+
+// buildTool compiles the tool binary. Skips if binary is already newer than source.
+func buildTool(t ClawTool, goBin string) error {
+	toolDir := filepath.Join(toolsRepoDir(), t.Dir)
+	binaryPath := toolBinaryPath(t)
+
+	// Skip rebuild if binary is newer than all .go source files
+	if binInfo, err := os.Stat(binaryPath); err == nil {
+		entries, _ := filepath.Glob(filepath.Join(toolDir, "*.go"))
+		needRebuild := false
+		for _, src := range entries {
+			if srcInfo, err := os.Stat(src); err == nil && srcInfo.ModTime().After(binInfo.ModTime()) {
+				needRebuild = true
+				break
+			}
+		}
+		if !needRebuild {
+			fmt.Fprintf(os.Stderr, "build: %s-%s already up to date\n", t.ID, "mcp")
+			return nil
+		}
+	}
+
+	fmt.Fprintf(os.Stderr, "build: compiling %s-mcp...\n", t.ID)
+	cmd := exec.Command(goBin, "build", "-o", binaryPath, ".")
+	cmd.Dir = toolDir
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("go build failed for %s: %s", t.ID, strings.TrimSpace(string(out)))
+	}
+	os.Chmod(binaryPath, 0755)
+	fmt.Fprintf(os.Stderr, "build: %s-mcp ready at %s\n", t.ID, binaryPath)
+	return nil
+}
+
+// ── Auto-configure ────────────────────────────────────────────────────────────
 
 // autoConfigureFromRegistry is the single source of truth for wiring ClawTools
-// into PicoClaw. It reads tools.json live from GitHub — nothing is hardcoded.
-// Triggered: after every OAuth add/revoke, and when Step 6 loads in the wizard.
+// into PicoClaw. Flow:
+//  1. Fetch tools.json from GitHub
+//  2. Clone / pull claw-tools.dev repo
+//  3. Build each available tool binary (skip if already current)
+//  4. Write config.json pointing to compiled binaries (not go run)
+//  5. Write SKILL.md
+//  6. Install / restart systemd services
+//  7. Restart PicoClaw
 func autoConfigureFromRegistry() {
 	fmt.Fprintf(os.Stderr, "auto-configure: starting...\n")
 
@@ -510,73 +577,92 @@ func autoConfigureFromRegistry() {
 
 	accounts, _ := listConnectedAccounts()
 	home, _ := os.UserHomeDir()
-	toolsRepoDir := filepath.Join(home, "claw-tools.dev")
+
+	// Step 1 — Ensure repo is present and up to date
+	if err := ensureToolsRepo(); err != nil {
+		fmt.Fprintf(os.Stderr, "auto-configure: repo setup failed: %v\n", err)
+		return
+	}
+
+	// Find Go binary
+	goBin := "/usr/local/go/bin/go"
+	if _, err := os.Stat(goBin); err != nil {
+		if path, err := exec.LookPath("go"); err == nil {
+			goBin = path
+		} else {
+			fmt.Fprintf(os.Stderr, "auto-configure: go binary not found\n")
+			return
+		}
+	}
 
 	cfg := readConfig()
 	if cfg.Tools == nil {
 		cfg.Tools = make(map[string]interface{})
 	}
 
-	// Build MCP servers map dynamically from tools.json
 	mcpServers := map[string]interface{}{}
-
-	goBin := "/usr/local/go/bin/go"
-	if _, err := os.Stat(goBin); err != nil {
-		goBin = "go"
-	}
-
 	configuredTools := []ClawTool{}
+	newlyInstalled := []ClawTool{} // only ping for tools installed this run
 
 	for _, t := range tools {
 		if t.Status != "available" {
 			continue
 		}
-		// Skip tools that need auth we haven't satisfied
 		if len(t.RequiresAuth) > 0 && len(accounts) == 0 {
 			continue
 		}
 
-		toolDir := filepath.Join(toolsRepoDir, t.Dir)
+		binaryPath := toolBinaryPath(t)
+		alreadyBuilt := func() bool {
+			_, err := os.Stat(binaryPath)
+			return err == nil
+		}()
 
-		// MCP server entry — command and args read from tools.json service_start
-		// We run in MCP stdio mode, not HTTP, so PicoClaw can use it natively
+		// Build binary — skip if already current
+		if err := buildTool(t, goBin); err != nil {
+			fmt.Fprintf(os.Stderr, "auto-configure: build failed for %s: %v — skipping\n", t.ID, err)
+			continue
+		}
+
+		toolDir := filepath.Join(toolsRepoDir(), t.Dir)
+
+		// Point MCP config to compiled binary, not go run
 		mcpServers["claw-"+t.ID] = map[string]interface{}{
-			"command": goBin,
-			"args":    []string{"run", ".", "--mode", "mcp"},
+			"command": binaryPath,
+			"args":    []string{"--mode", "mcp"},
 			"cwd":     toolDir,
 		}
 
-		// Also install systemd service for HTTP mode (health checks, HTTP agents)
-		installToolService(t.ID, t.HTTPPort, toolDir, home, goBin)
+		installToolService(t.ID, t.HTTPPort, binaryPath, toolDir, home)
 		configuredTools = append(configuredTools, t)
+
+		// Only ping on first install, not every re-run
+		if !alreadyBuilt {
+			newlyInstalled = append(newlyInstalled, t)
+		}
 	}
 
-	// Write MCP servers into config.json under tools.mcp.servers
-	cfg.Tools["mcp"] = map[string]interface{}{
-		"servers": mcpServers,
-	}
+	cfg.Tools["mcp"] = map[string]interface{}{"servers": mcpServers}
 
 	if err := writeConfig(cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "auto-configure: could not write config: %v\n", err)
 		return
 	}
-	fmt.Fprintf(os.Stderr, "auto-configure: config.json updated with %d MCP servers\n", len(mcpServers))
+	fmt.Fprintf(os.Stderr, "auto-configure: config.json updated — %d MCP servers\n", len(mcpServers))
 
-	// Write PicoClaw skill file from tools.json — agent discovers tools via this
 	autoWriteSkillFile(configuredTools, home)
 
-	// Restart PicoClaw so it picks up the new MCP config
 	runCommand("systemctl", "--user", "restart", "picoclaw")
 	fmt.Fprintf(os.Stderr, "auto-configure: picoclaw restarted\n")
 
-	// Telegram ping per tool
-	for _, t := range configuredTools {
+	// Only ping for tools that were just built for the first time
+	for _, t := range newlyInstalled {
 		sendToolConnectedPing(t)
 	}
 }
 
-// autoWriteSkillFile writes ~/.picoclaw/workspace/skills/clawtools/SKILL.md
-// from live tools.json data. PicoClaw auto-injects all skills on every session.
+// ── Skill file ────────────────────────────────────────────────────────────────
+
 func autoWriteSkillFile(tools []ClawTool, home string) {
 	skillDir := filepath.Join(home, ".picoclaw", "workspace", "skills", "clawtools")
 	os.MkdirAll(skillDir, 0755)
@@ -587,9 +673,7 @@ func autoWriteSkillFile(tools []ClawTool, home string) {
 	sb.WriteString("Use them directly when the user asks about emails, calendar, or any connected service.\n\n")
 
 	for _, t := range tools {
-		sb.WriteString(fmt.Sprintf("## %s\n", t.Name))
-		sb.WriteString(fmt.Sprintf("%s\n\n", t.Description))
-		sb.WriteString("Available MCP tools:\n")
+		sb.WriteString(fmt.Sprintf("## %s\n%s\n\nAvailable MCP tools:\n", t.Name, t.Description))
 		for _, tool := range t.MCPTools {
 			sb.WriteString(fmt.Sprintf("- `%s`\n", tool))
 		}
@@ -609,38 +693,13 @@ func autoWriteSkillFile(tools []ClawTool, home string) {
 	fmt.Fprintf(os.Stderr, "auto-configure: SKILL.md written to %s\n", path)
 }
 
-// autoWriteToolsMD writes ~/.picoclaw/workspace/TOOLS.md as a fallback
-// for agents that read workspace files but not skills directory
-func autoWriteToolsMD(tools []ClawTool) {
-	home, _ := os.UserHomeDir()
-	workspaceDir := filepath.Join(home, ".picoclaw", "workspace")
-	os.MkdirAll(workspaceDir, 0755)
+// ── Systemd service ───────────────────────────────────────────────────────────
 
-	var sb strings.Builder
-	sb.WriteString("# Available Tools\n\n")
-	sb.WriteString("Use these MCP tools when asked about connected services:\n\n")
-
-	for _, t := range tools {
-		if t.Status != "available" {
-			continue
-		}
-		accounts, _ := listConnectedAccounts()
-		if len(t.RequiresAuth) > 0 && len(accounts) == 0 {
-			continue
-		}
-		sb.WriteString(fmt.Sprintf("## %s\n%s\nMCP tools: %s\n\n",
-			t.Name, t.Description, strings.Join(t.MCPTools, ", ")))
-	}
-
-	os.WriteFile(filepath.Join(workspaceDir, "TOOLS.md"), []byte(sb.String()), 0644)
-	fmt.Fprintf(os.Stderr, "auto-configure: TOOLS.md updated\n")
-}
-
-func installToolService(id string, port int, toolDir string, home string, goBin string) {
+// installToolService writes a systemd user service that runs the compiled binary
+// in HTTP mode. Uses the binary directly — no go run.
+func installToolService(id string, port int, binaryPath string, toolDir string, home string) {
 	serviceDir := filepath.Join(home, ".config", "systemd", "user")
 	os.MkdirAll(serviceDir, 0755)
-
-	execStart := fmt.Sprintf("%s run . --mode http --port %d", goBin, port)
 
 	content := fmt.Sprintf(`[Unit]
 Description=ClawTools %s
@@ -648,7 +707,7 @@ After=network.target picoclaw.service
 
 [Service]
 Type=simple
-ExecStart=%s
+ExecStart=%s --mode http --port %d
 WorkingDirectory=%s
 Restart=on-failure
 RestartSec=5
@@ -656,7 +715,7 @@ Environment=HOME=%s
 
 [Install]
 WantedBy=default.target
-`, id, execStart, toolDir, home)
+`, id, binaryPath, port, toolDir, home)
 
 	serviceName := "claw-" + id
 	path := filepath.Join(serviceDir, serviceName+".service")
@@ -668,9 +727,11 @@ WantedBy=default.target
 
 	runCommand("systemctl", "--user", "daemon-reload")
 	runCommand("systemctl", "--user", "enable", serviceName)
-	runCommand("systemctl", "--user", "start", serviceName)
-	fmt.Fprintf(os.Stderr, "auto-configure: service %s installed and started\n", serviceName)
+	runCommand("systemctl", "--user", "restart", serviceName)
+	fmt.Fprintf(os.Stderr, "auto-configure: service %s installed\n", serviceName)
 }
+
+// ── Telegram ping ─────────────────────────────────────────────────────────────
 
 func sendToolConnectedPing(t ClawTool) {
 	cfg := readConfig()
@@ -687,16 +748,9 @@ func sendToolConnectedPing(t ClawTool) {
 	if chatID == "" {
 		return
 	}
-
-	msg := fmt.Sprintf(
-		"🦞 *%s* is now connected!\n\n_%s_\n\nRunning at `http://localhost:%d`",
-		t.Name, t.Description, t.HTTPPort,
-	)
-
-	body := fmt.Sprintf(
-		`{"chat_id":"%s","text":"%s","parse_mode":"Markdown"}`,
-		chatID, strings.ReplaceAll(msg, `"`, `\"`),
-	)
+	msg := fmt.Sprintf("🦞 *%s* is now connected!\n\n_%s_", t.Name, t.Description)
+	body := fmt.Sprintf(`{"chat_id":"%s","text":"%s","parse_mode":"Markdown"}`,
+		chatID, strings.ReplaceAll(msg, `"`, `\"`))
 	req, err := http.NewRequest("POST",
 		"https://api.telegram.org/bot"+token+"/sendMessage",
 		strings.NewReader(body))
@@ -722,15 +776,44 @@ func oauthSuccessPage() string {
           padding:40px 48px;text-align:center;max-width:400px}
     .icon{font-size:48px;margin-bottom:16px}
     h1{font-size:22px;font-weight:600;margin:0 0 8px;color:#00d4aa}
-    p{color:#8b90b0;font-size:14px;margin:0}
+    p{color:#8b90b0;font-size:14px;margin:0 0 20px}
+    .timer-ring{position:relative;width:48px;height:48px;margin:0 auto}
+    .timer-ring svg{transform:rotate(-90deg)}
+    .timer-ring circle{fill:none;stroke:#2e3350;stroke-width:4}
+    .timer-ring circle.progress{stroke:#00d4aa;stroke-dasharray:126;stroke-dashoffset:0;
+      transition:stroke-dashoffset 1s linear;stroke-linecap:round}
+    .timer-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+      font-size:16px;font-weight:700;color:#00d4aa}
   </style>
 </head>
 <body>
   <div class="card">
     <div class="icon">🦞</div>
     <h1>Account connected!</h1>
-    <p>You can close this tab and return to the setup wizard.</p>
+    <p>Closing this tab automatically...</p>
+    <div class="timer-ring">
+      <svg width="48" height="48" viewBox="0 0 48 48">
+        <circle cx="24" cy="24" r="20"/>
+        <circle class="progress" id="ring" cx="24" cy="24" r="20"/>
+      </svg>
+      <div class="timer-num" id="num">10</div>
+    </div>
   </div>
+  <script>
+    const circ = 2 * Math.PI * 20;
+    const ring = document.getElementById('ring');
+    const num  = document.getElementById('num');
+    ring.style.strokeDasharray = circ;
+    ring.style.strokeDashoffset = 0;
+    let left = 10;
+    const tick = () => {
+      left--;
+      num.textContent = left;
+      ring.style.strokeDashoffset = circ * (1 - left / 10);
+      if (left <= 0) { window.close(); }
+    };
+    setInterval(tick, 1000);
+  </script>
 </body>
 </html>`
 }

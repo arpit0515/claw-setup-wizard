@@ -1543,8 +1543,6 @@ let oauthPollInterval = null;
 const categoryIcon = { email: '✉️', calendar: '📅', utility: '🔧' };
 
 async function loadTools() {
-  // Refresh TOOLS.md, SKILL.md and MCP config on Pi whenever user hits refresh
-  fetch('/api/tools/refresh', { method: 'POST' });
 
   document.getElementById('tools-loading').style.display = 'block';
   document.getElementById('tools-grid').style.display = 'none';
