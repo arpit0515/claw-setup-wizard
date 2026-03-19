@@ -541,6 +541,14 @@
         </div>
       </div>
       <div id="sys-alert" class="alert"></div>
+      <div class="card" id="picoclaw-update-card" style="display:none;border-color:var(--warning)">
+        <div class="card-title">PicoClaw Update Available</div>
+        <div id="update-info" style="font-size:13px;color:var(--text2);margin-bottom:12px"></div>
+        <div id="update-alert" class="alert"></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="btn-update-picoclaw" onclick="updatePicoclaw()">⬆ Update PicoClaw</button>
+        </div>
+      </div>
       <div id="install-picoclaw-section">
         <div class="card" style="border-color: var(--warning)">
           <div class="card-title">PicoClaw Not Found</div>
@@ -1208,8 +1216,35 @@ function filterModels() {
   sel.innerHTML = filtered.map(m => `<option value="${m.id}">${m.name}${m.free ? ' 🆓' : ''}</option>`).join('');
 }
 
+// ── PicoClaw version check ────────────────────────────────────────────────────
+async function checkPicoClawVersion() {
+  const r = await fetch('/api/picoclaw/version');
+  const data = await r.json();
+  if (data.update_available) {
+    document.getElementById('picoclaw-update-card').style.display = 'block';
+    document.getElementById('update-info').textContent =
+      `Current: ${data.current}  →  Latest: ${data.latest}`;
+  }
+}
+
+async function updatePicoclaw() {
+  const btn = document.getElementById('btn-update-picoclaw');
+  btn.innerHTML = '<div class="spinner"></div> Updating...';
+  btn.disabled = true;
+  const r = await fetch('/api/picoclaw/update', { method: 'POST' });
+  const data = await r.json();
+  if (data.ok) {
+    showAlert('update-alert', 'success', '✓ ' + data.message);
+  } else {
+    showAlert('update-alert', 'error', '✗ ' + data.message);
+    btn.innerHTML = '⬆ Retry Update';
+    btn.disabled = false;
+  }
+}
+
 // Init
 runSystemCheck();
+checkPicoClawVersion();
 
 // ── Step 5: Connected Tools ───────────────────────────────────────
 
@@ -1220,7 +1255,8 @@ const categoryIcon = { email: '✉️', calendar: '📅', utility: '🔧' };
 async function loadTools() {
   checkCredentials();
 
-  await fetch('/api/tools/refresh', { method: 'POST' });
+  // Refresh TOOLS.md, SKILL.md and MCP config on Pi whenever user hits refresh
+  fetch('/api/tools/refresh', { method: 'POST' });
 
   document.getElementById('tools-loading').style.display = 'block';
   document.getElementById('tools-grid').style.display = 'none';

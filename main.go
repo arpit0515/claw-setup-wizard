@@ -45,21 +45,17 @@ func main() {
 
 	// ── Tools & OAuth routes ──────────────────────────────────────────────────
 	mux.HandleFunc("/api/tools", handleGetTools)
+	mux.HandleFunc("/api/tools/refresh", handleToolsRefresh)
 	mux.HandleFunc("/api/oauth/start", handleOAuthStart)
 	mux.HandleFunc("/api/oauth/status", handleOAuthStatus)
 	mux.HandleFunc("/api/oauth/accounts", handleOAuthAccounts)
 	mux.HandleFunc("/api/oauth/revoke", handleOAuthRevoke)
 	mux.HandleFunc("/api/oauth/creds-status", handleCredsStatus)
 	mux.HandleFunc("/oauth/callback", handleOAuthCallback)
-	mux.HandleFunc("/api/tools/refresh", func(w http.ResponseWriter, r *http.Request) {
-		tools, err := fetchToolsRegistry()
-		if err != nil {
-			errorResponse(w, err.Error())
-			return
-		}
-		autoWriteToolsMD(tools)
-		okResponse(w, "TOOLS.md refreshed", nil)
-	})
+
+	// ── PicoClaw version & update routes ──────────────────────────────────────
+	mux.HandleFunc("/api/picoclaw/version", handlePicoClawVersion)
+	mux.HandleFunc("/api/picoclaw/update", handlePicoClawUpdate)
 
 	ip := getLocalIP()
 	fmt.Println(" *** claw-setup is running **** ")

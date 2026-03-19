@@ -302,6 +302,12 @@ var activeFlow *oauthFlowState
 
 // ── HTTP Handlers ─────────────────────────────────────────────────────────────
 
+// GET/POST /api/tools/refresh — re-run auto-configure from tools registry
+func handleToolsRefresh(w http.ResponseWriter, r *http.Request) {
+	go autoConfigureFromRegistry()
+	okResponse(w, "Tools refreshed — SKILL.md and MCP config updated", nil)
+}
+
 // GET /api/tools
 func handleGetTools(w http.ResponseWriter, r *http.Request) {
 	tools, err := fetchToolsRegistry()
@@ -490,65 +496,121 @@ func handleCredsStatus(w http.ResponseWriter, r *http.Request) {
 
 // ── Auto-configure from tools registry ───────────────────────────────────────
 
-// autoConfigureFromRegistry fetches tools.json, reads each tool's SKILL.md,
-// writes tool URLs into ~/.picoclaw/config.json, and installs systemd services.
-// Called automatically after every successful OAuth connection.
+// autoConfigureFromRegistry is the single source of truth for wiring ClawTools
+// into PicoClaw. It reads tools.json live from GitHub — nothing is hardcoded.
+// Triggered: after every OAuth add/revoke, and when Step 6 loads in the wizard.
 func autoConfigureFromRegistry() {
+	fmt.Fprintf(os.Stderr, "auto-configure: starting...\n")
+
 	tools, err := fetchToolsRegistry()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "auto-configure: could not fetch tools registry: %v\n", err)
 		return
 	}
 
+	accounts, _ := listConnectedAccounts()
+	home, _ := os.UserHomeDir()
+	toolsRepoDir := filepath.Join(home, "claw-tools.dev")
+
 	cfg := readConfig()
 	if cfg.Tools == nil {
 		cfg.Tools = make(map[string]interface{})
 	}
 
-	home, _ := os.UserHomeDir()
-	toolsRepoDir := filepath.Join(home, "claw-tools.dev")
+	// Build MCP servers map dynamically from tools.json
+	mcpServers := map[string]interface{}{}
+
+	goBin := "/usr/local/go/bin/go"
+	if _, err := os.Stat(goBin); err != nil {
+		goBin = "go"
+	}
+
+	configuredTools := []ClawTool{}
 
 	for _, t := range tools {
 		if t.Status != "available" {
 			continue
 		}
-		// Only configure tools that require auth we have satisfied
-		if len(t.RequiresAuth) > 0 {
-			accounts, _ := listConnectedAccounts()
-			if len(accounts) == 0 {
-				continue
-			}
+		// Skip tools that need auth we haven't satisfied
+		if len(t.RequiresAuth) > 0 && len(accounts) == 0 {
+			continue
 		}
 
-		// Write tool config derived from tools.json — no hardcoding
-		cfg.Tools[t.ID] = map[string]interface{}{
-			"url":       fmt.Sprintf("http://localhost:%d", t.HTTPPort),
-			"autostart": true,
-			"health":    t.HealthURL,
-		}
-
-		// Install systemd service using service_start from tools.json
 		toolDir := filepath.Join(toolsRepoDir, t.Dir)
-		installToolService(t.ID, t.HTTPPort, t.ServiceStart, toolDir, home)
+
+		// MCP server entry — command and args read from tools.json service_start
+		// We run in MCP stdio mode, not HTTP, so PicoClaw can use it natively
+		mcpServers["claw-"+t.ID] = map[string]interface{}{
+			"command": goBin,
+			"args":    []string{"run", ".", "--mode", "mcp"},
+			"cwd":     toolDir,
+		}
+
+		// Also install systemd service for HTTP mode (health checks, HTTP agents)
+		installToolService(t.ID, t.HTTPPort, toolDir, home, goBin)
+		configuredTools = append(configuredTools, t)
+	}
+
+	// Write MCP servers into config.json under tools.mcp.servers
+	cfg.Tools["mcp"] = map[string]interface{}{
+		"servers": mcpServers,
 	}
 
 	if err := writeConfig(cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "auto-configure: could not write config: %v\n", err)
 		return
 	}
-	fmt.Fprintf(os.Stderr, "auto-configure: config updated successfully\n")
+	fmt.Fprintf(os.Stderr, "auto-configure: config.json updated with %d MCP servers\n", len(mcpServers))
 
-	autoWriteToolsMD(tools)
+	// Write PicoClaw skill file from tools.json — agent discovers tools via this
+	autoWriteSkillFile(configuredTools, home)
 
-	// Ping user via Telegram for each tool that was configured
-	for _, t := range tools {
-		if t.Status != "available" {
-			continue
-		}
+	// Restart PicoClaw so it picks up the new MCP config
+	runCommand("systemctl", "--user", "restart", "picoclaw")
+	fmt.Fprintf(os.Stderr, "auto-configure: picoclaw restarted\n")
+
+	// Telegram ping per tool
+	for _, t := range configuredTools {
 		sendToolConnectedPing(t)
 	}
 }
 
+// autoWriteSkillFile writes ~/.picoclaw/workspace/skills/clawtools/SKILL.md
+// from live tools.json data. PicoClaw auto-injects all skills on every session.
+func autoWriteSkillFile(tools []ClawTool, home string) {
+	skillDir := filepath.Join(home, ".picoclaw", "workspace", "skills", "clawtools")
+	os.MkdirAll(skillDir, 0755)
+
+	var sb strings.Builder
+	sb.WriteString("# ClawTools\n\n")
+	sb.WriteString("You have MCP tools available for the following services. ")
+	sb.WriteString("Use them directly when the user asks about emails, calendar, or any connected service.\n\n")
+
+	for _, t := range tools {
+		sb.WriteString(fmt.Sprintf("## %s\n", t.Name))
+		sb.WriteString(fmt.Sprintf("%s\n\n", t.Description))
+		sb.WriteString("Available MCP tools:\n")
+		for _, tool := range t.MCPTools {
+			sb.WriteString(fmt.Sprintf("- `%s`\n", tool))
+		}
+		sb.WriteString("\n")
+	}
+
+	sb.WriteString("## Instructions\n")
+	sb.WriteString("- When asked about emails: use `gmail_list` or `gmail_search`\n")
+	sb.WriteString("- When asked about calendar/schedule: use `gcal_today` or `gcal_upcoming`\n")
+	sb.WriteString("- Always use these tools rather than saying you don't have access\n")
+
+	path := filepath.Join(skillDir, "SKILL.md")
+	if err := os.WriteFile(path, []byte(sb.String()), 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "auto-configure: could not write SKILL.md: %v\n", err)
+		return
+	}
+	fmt.Fprintf(os.Stderr, "auto-configure: SKILL.md written to %s\n", path)
+}
+
+// autoWriteToolsMD writes ~/.picoclaw/workspace/TOOLS.md as a fallback
+// for agents that read workspace files but not skills directory
 func autoWriteToolsMD(tools []ClawTool) {
 	home, _ := os.UserHomeDir()
 	workspaceDir := filepath.Join(home, ".picoclaw", "workspace")
@@ -556,7 +618,7 @@ func autoWriteToolsMD(tools []ClawTool) {
 
 	var sb strings.Builder
 	sb.WriteString("# Available Tools\n\n")
-	sb.WriteString("When asked about any of the following, call the HTTP endpoints directly.\n\n")
+	sb.WriteString("Use these MCP tools when asked about connected services:\n\n")
 
 	for _, t := range tools {
 		if t.Status != "available" {
@@ -566,27 +628,20 @@ func autoWriteToolsMD(tools []ClawTool) {
 		if len(t.RequiresAuth) > 0 && len(accounts) == 0 {
 			continue
 		}
-		sb.WriteString(fmt.Sprintf("## %s (http://localhost:%d)\n", t.Name, t.HTTPPort))
-		sb.WriteString(fmt.Sprintf("%s\n\n", t.Description))
-		for _, tool := range t.MCPTools {
-			sb.WriteString(fmt.Sprintf("- `%s` → GET http://localhost:%d/%s\n",
-				tool, t.HTTPPort, strings.ReplaceAll(tool, "_", "/")))
-		}
-		sb.WriteString("\n")
+		sb.WriteString(fmt.Sprintf("## %s\n%s\nMCP tools: %s\n\n",
+			t.Name, t.Description, strings.Join(t.MCPTools, ", ")))
 	}
 
-	path := filepath.Join(workspaceDir, "TOOLS.md")
-	os.WriteFile(path, []byte(sb.String()), 0644)
-	fmt.Fprintf(os.Stderr, "auto-configure: TOOLS.md written to %s\n", path)
+	os.WriteFile(filepath.Join(workspaceDir, "TOOLS.md"), []byte(sb.String()), 0644)
+	fmt.Fprintf(os.Stderr, "auto-configure: TOOLS.md updated\n")
 }
 
-func installToolService(id string, port int, startCmd string, toolDir string, home string) {
+func installToolService(id string, port int, toolDir string, home string, goBin string) {
 	serviceDir := filepath.Join(home, ".config", "systemd", "user")
 	os.MkdirAll(serviceDir, 0755)
 
 	// Build ExecStart from service_start field in tools.json
 	// e.g. "go run . --mode http --port 3101" → full path command
-	goBin := "/usr/local/go/bin/go"
 	if _, err := os.Stat(goBin); err != nil {
 		goBin = "go" // fall back to PATH
 	}
