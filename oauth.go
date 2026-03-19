@@ -537,6 +537,14 @@ func autoConfigureFromRegistry() {
 		return
 	}
 	fmt.Fprintf(os.Stderr, "auto-configure: config updated successfully\n")
+
+	// Ping user via Telegram for each tool that was configured
+	for _, t := range tools {
+		if t.Status != "available" {
+			continue
+		}
+		sendToolConnectedPing(t)
+	}
 }
 
 func installToolService(id string, port int, startCmd string, toolDir string, home string) {
@@ -579,6 +587,41 @@ WantedBy=default.target
 	runCommand("systemctl", "--user", "enable", serviceName)
 	runCommand("systemctl", "--user", "start", serviceName)
 	fmt.Fprintf(os.Stderr, "auto-configure: service %s installed and started\n", serviceName)
+}
+
+func sendToolConnectedPing(t ClawTool) {
+	cfg := readConfig()
+	tg, ok := cfg.Channels["telegram"]
+	if !ok {
+		return
+	}
+	token, _ := tg["token"].(string)
+	users, _ := tg["allowFrom"].([]interface{})
+	if token == "" || len(users) == 0 {
+		return
+	}
+	chatID, _ := users[0].(string)
+	if chatID == "" {
+		return
+	}
+
+	msg := fmt.Sprintf(
+		"🦞 *%s* is now connected!\n\n_%s_\n\nRunning at `http://localhost:%d`",
+		t.Name, t.Description, t.HTTPPort,
+	)
+
+	body := fmt.Sprintf(
+		`{"chat_id":"%s","text":"%s","parse_mode":"Markdown"}`,
+		chatID, strings.ReplaceAll(msg, `"`, `\"`),
+	)
+	req, err := http.NewRequest("POST",
+		"https://api.telegram.org/bot"+token+"/sendMessage",
+		strings.NewReader(body))
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	httpClient.Do(req)
 }
 
 // ── Success page ──────────────────────────────────────────────────────────────
