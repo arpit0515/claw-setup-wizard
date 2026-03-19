@@ -744,7 +744,7 @@
           <div class="status-row"><span>Loading...</span></div>
         </div>
       </div>
-      <div class="card">
+      <div class="card" id="service-install-card">
         <div class="card-title">Install as System Service</div>
         <p style="font-size:13px; color:var(--text2); margin-bottom:14px">This sets PicoClaw to start automatically on boot and restart if it crashes.</p>
         <div id="service-alert" class="alert"></div>
@@ -765,6 +765,9 @@
               <code>systemctl --user restart picoclaw</code>
               <code>picoclaw agent -m "hello"</code>
             </div>
+            <div class="btn-row" style="justify-content:center;margin-top:16px">
+              <button class="btn btn-primary" onclick="goTo(5)">Connect Tools →</button>
+            </div>
           </div>
         </div>
       </div>
@@ -778,15 +781,13 @@
       <!-- Credentials status card -->
       <div class="card" id="creds-card">
         <div class="card-title">Google OAuth</div>
-        <div id="creds-status-row" class="status-row">
+        <div class="status-row">
           <span class="status-label">ClawTools OAuth config</span>
-          <span><div class="spinner"></div></span>
+          <div class="status-right">
+            <span class="badge ok">✓ Ready</span>
+          </div>
         </div>
-        <div id="creds-missing" style="display:none;margin-top:12px">
-          <p style="font-size:13px;color:var(--danger)">
-            Could not reach the OAuth config server. Check your internet connection and try refreshing.
-          </p>
-        </div>
+        <p style="font-size:12px;color:var(--text2);margin-top:8px">OAuth credentials are served securely — no setup needed. Click Add Account to connect.</p>
       </div>
 
       <!-- Tools grid -->
@@ -1125,7 +1126,7 @@ async function installService() {
   const r = await fetch('/api/install-service', { method: 'POST' });
   const data = await r.json();
   if (data.ok) {
-    showAlert('service-alert', 'success', '✓ ' + data.message);
+    document.getElementById('service-install-card').style.display = 'none';
     document.getElementById('launch-success').style.display = 'block';
     document.getElementById('progress').style.width = '100%';
     markDone(4); state.service = true;
@@ -1253,8 +1254,6 @@ let oauthPollInterval = null;
 const categoryIcon = { email: '✉️', calendar: '📅', utility: '🔧' };
 
 async function loadTools() {
-  checkCredentials();
-
   // Refresh TOOLS.md, SKILL.md and MCP config on Pi whenever user hits refresh
   fetch('/api/tools/refresh', { method: 'POST' });
 

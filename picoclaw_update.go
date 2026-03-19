@@ -49,18 +49,29 @@ func picoClawArch() string {
 // ── Current version ───────────────────────────────────────────────────────────
 
 func picoClawCurrentVersion() string {
-	out, err := exec.Command("picoclaw", "version").Output()
+	out, err := exec.Command("picoclaw", "--version").Output()
 	if err != nil {
-		return ""
+		out2, err2 := exec.Command("picoclaw", "version").Output()
+		if err2 != nil {
+			return ""
+		}
+		out = out2
 	}
-	// Output like "picoclaw v0.2.3 ..."
-	parts := strings.Fields(strings.TrimSpace(string(out)))
-	for _, p := range parts {
-		if strings.HasPrefix(p, "v") {
-			return p
+	// Strip ANSI escape codes
+	text := strings.TrimSpace(string(out))
+	// Find version pattern vX.Y.Z
+	for _, word := range strings.Fields(text) {
+		clean := strings.Map(func(r rune) rune {
+			if r >= 32 && r < 127 {
+				return r
+			}
+			return -1
+		}, word)
+		if strings.HasPrefix(clean, "v") && strings.Count(clean, ".") >= 1 {
+			return clean
 		}
 	}
-	return strings.TrimSpace(string(out))
+	return ""
 }
 
 // ── Latest release ────────────────────────────────────────────────────────────

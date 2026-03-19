@@ -640,11 +640,6 @@ func installToolService(id string, port int, toolDir string, home string, goBin 
 	serviceDir := filepath.Join(home, ".config", "systemd", "user")
 	os.MkdirAll(serviceDir, 0755)
 
-	// Build ExecStart from service_start field in tools.json
-	// e.g. "go run . --mode http --port 3101" → full path command
-	if _, err := os.Stat(goBin); err != nil {
-		goBin = "go" // fall back to PATH
-	}
 	execStart := fmt.Sprintf("%s run . --mode http --port %d", goBin, port)
 
 	content := fmt.Sprintf(`[Unit]
