@@ -53,6 +53,9 @@ func main() {
 	mux.HandleFunc("/api/oauth/creds-status", handleCredsStatus)
 	mux.HandleFunc("/oauth/callback", handleOAuthCallback)
 
+	mux.HandleFunc("/api/restart-service", handleRestartService)
+	mux.HandleFunc("/api/local-ip", handleLocalIP)
+
 	// ── PicoClaw version & update routes ──────────────────────────────────────
 	mux.HandleFunc("/api/picoclaw/version", handlePicoClawVersion)
 	mux.HandleFunc("/api/picoclaw/update", handlePicoClawUpdate)
