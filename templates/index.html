@@ -767,20 +767,17 @@
       <h2>Connected Tools</h2>
       <p class="subtitle">Connect your email and calendar so your agent can read, summarise and brief you daily.</p>
 
-      <!-- Credentials upload card -->
+      <!-- Credentials status card -->
       <div class="card" id="creds-card">
-        <div class="card-title">Google Credentials</div>
-        <p style="font-size:13px;color:var(--text2);margin-bottom:12px">
-          Paste your <code style="background:var(--surface2);padding:1px 6px;border-radius:4px;color:var(--accent2);font-size:12px">google_credentials.json</code> below.
-          <a href="https://console.cloud.google.com/" target="_blank" style="color:var(--accent2)">Get it from Google Cloud Console →</a>
-        </p>
-        <div class="form-group">
-          <label>credentials.json content</label>
-          <textarea id="creds-json" placeholder='{"installed":{"client_id":"...","client_secret":"...",...}}' style="min-height:90px;font-size:12px;font-family:monospace"></textarea>
+        <div class="card-title">Google OAuth</div>
+        <div id="creds-status-row" class="status-row">
+          <span class="status-label">ClawTools OAuth config</span>
+          <span><div class="spinner"></div></span>
         </div>
-        <div id="creds-alert" class="alert"></div>
-        <div class="btn-row">
-          <button class="btn btn-primary" onclick="uploadCredentials()">Save Credentials</button>
+        <div id="creds-missing" style="display:none;margin-top:12px">
+          <p style="font-size:13px;color:var(--danger)">
+            Could not reach the OAuth config server. Check your internet connection and try refreshing.
+          </p>
         </div>
       </div>
 
@@ -1221,6 +1218,7 @@ let oauthPollInterval = null;
 const categoryIcon = { email: '✉️', calendar: '📅', utility: '🔧' };
 
 async function loadTools() {
+  checkCredentials();
   document.getElementById('tools-loading').style.display = 'block';
   document.getElementById('tools-grid').style.display = 'none';
 
@@ -1294,18 +1292,26 @@ function renderAccounts(accounts) {
     </div>`).join('');
 }
 
-async function uploadCredentials() {
-  const content = document.getElementById('creds-json').value.trim();
-  if (!content) { showAlert('creds-alert', 'error', 'Paste your credentials.json content first'); return; }
-  const fd = new FormData();
-  fd.append('credentials_json', content);
-  const r = await fetch('/api/oauth/upload-credentials', { method: 'POST', body: fd });
+async function checkCredentials() {
+  const r = await fetch('/api/oauth/creds-status');
   const data = await r.json();
-  if (data.ok) {
-    showAlert('creds-alert', 'success', '✓ Credentials saved — you can now add accounts');
-    document.getElementById('creds-card').style.borderColor = 'var(--success)';
+  const row = document.getElementById('creds-status-row');
+  const missing = document.getElementById('creds-missing');
+  if (data.exists) {
+    row.innerHTML = `
+      <span class="status-label">google_credentials.json</span>
+      <div class="status-right">
+        <span class="badge ok">✓ Found</span>
+      </div>`;
+    missing.style.display = 'none';
+    document.getElementById('accounts-card').style.display = 'block';
   } else {
-    showAlert('creds-alert', 'error', '✗ ' + data.message);
+    row.innerHTML = `
+      <span class="status-label">google_credentials.json</span>
+      <div class="status-right">
+        <span class="badge warn">○ Missing</span>
+      </div>`;
+    missing.style.display = 'block';
   }
 }
 
