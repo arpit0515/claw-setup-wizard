@@ -481,6 +481,18 @@
     .btn { width: 100%; justify-content: center; }
     .btn-row { flex-direction: column; align-items: stretch; }
   }
+  /* ── Tool cards ── */
+  .tool-card {
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px; margin-bottom: 10px; transition: border-color 0.2s;
+  }
+  .tool-card.ready { border-color: var(--success); }
+  .tool-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .tool-card-title { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .tool-card-desc { font-size: 12px; color: var(--text2); margin-bottom: 10px; line-height: 1.5; }
+  .tool-binary { font-size: 11px; color: var(--text2); margin-bottom: 10px; word-break: break-all; }
+  .tool-binary code { color: var(--accent2); font-size: 11px; }
+  .btn-danger { background: rgba(255,79,79,0.15); color: var(--danger); border: 1px solid var(--danger); }
 </style>
 </head>
 <body>
@@ -517,6 +529,10 @@
     <div class="step-item" id="nav-4" onclick="goTo(4)">
       <div class="step-icon" id="icon-4">5</div>
       <div><div class="step-label">Launch</div><div class="step-sub">Go live</div></div>
+    </div>
+    <div class="step-item" id="nav-5" onclick="goTo(5)">
+      <div class="step-icon" id="icon-5">6</div>
+      <div><div class="step-label">Connected Tools</div><div class="step-sub">Gmail &amp; Calendar</div></div>
     </div>
   </aside>
 
@@ -759,6 +775,39 @@
       </div>
     </div>
 
+    <!-- ── STEP 5: Connected Tools ───────────────────────────────── -->
+    <div class="section" id="step-5">
+      <h2>Connected Tools</h2>
+      <p class="subtitle">Extend your twin with Gmail, Google Calendar, and more. The wizard builds and registers each tool automatically — no terminal needed.</p>
+
+      <div id="tools-list">
+        <div class="card">
+          <div class="status-row" style="border:none">
+            <span class="status-label">Loading tools...</span>
+            <div class="spinner"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="tools-global-alert" class="alert"></div>
+
+      <div class="card">
+        <div class="card-title">After Connecting Tools</div>
+        <p style="font-size:13px; color:var(--text2); line-height:1.6; margin-bottom:12px">
+          Restart your twin so it picks up the new tools. Then message your bot on Telegram:
+        </p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px">
+          <code style="background:var(--surface2); padding:4px 10px; border-radius:6px; color:var(--accent2); font-size:12px">"Show me my last 5 emails"</code>
+          <code style="background:var(--surface2); padding:4px 10px; border-radius:6px; color:var(--accent2); font-size:12px">"What's on my calendar today?"</code>
+        </div>
+        <div id="tools-restart-alert" class="alert"></div>
+        <div class="btn-row">
+          <button class="btn btn-secondary" onclick="loadTools()">↻ Refresh</button>
+          <button class="btn btn-primary" onclick="restartAfterTools()">↺ Restart Twin</button>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -784,14 +833,18 @@
     <div class="bnav-icon" id="bicon-4">5</div>
     <div class="bnav-label">Launch</div>
   </div>
+  <div class="bottom-nav-item" id="bnav-5" onclick="goTo(5)">
+    <div class="bnav-icon" id="bicon-5">6</div>
+    <div class="bnav-label">Tools</div>
+  </div>
 </nav>
 
 <script>
 let currentStep = 0;
 let selectedProvider = 'openrouter';
 let systemData = {};
-let state = { system: false, llm: false, telegram: false, soul: false, service: false };
-const progress = [10, 30, 55, 75, 95];
+let state = { system: false, llm: false, telegram: false, soul: false, service: false, tools: false };
+const progress = [10, 30, 55, 75, 90, 100];
 
 const providerModels = {
   openrouter: {
@@ -837,6 +890,7 @@ function goTo(n) {
   if (n === 2) populateTelegram();
   if (n === 3) populateSoul();
   if (n === 4) loadFinalChecklist();
+  if (n === 5) loadTools();
 }
 
 function markDone(n) {
@@ -1172,8 +1226,127 @@ function filterModels() {
   sel.innerHTML = filtered.map(m => `<option value="${m.id}">${m.name}${m.free ? ' 🆓' : ''}</option>`).join('');
 }
 
-// Init
+// ── Step 5: Connected Tools ───────────────────────────────────────────────────
+async function loadTools() {
+  document.getElementById('tools-list').innerHTML = `
+    <div class="card">
+      <div class="status-row" style="border:none">
+        <span class="status-label">Checking tool status...</span>
+        <div class="spinner"></div>
+      </div>
+    </div>`;
+
+  const r    = await fetch('/api/tools/status');
+  const data = await r.json();
+
+  if (!data.ok || !data.tools) {
+    document.getElementById('tools-list').innerHTML = `
+      <div class="card">
+        <p style="color:var(--danger); font-size:13px">✗ Could not load tools. Is the wizard running correctly?</p>
+      </div>`;
+    return;
+  }
+
+  const anyReady = data.tools.some(t => t.installed && t.registered);
+  if (anyReady) { markDone(5); state.tools = true; }
+
+  document.getElementById('tools-list').innerHTML = data.tools.map(tool => `
+    <div class="tool-card ${tool.installed && tool.registered ? 'ready' : ''}" id="tool-card-${tool.id}">
+      <div class="tool-card-header">
+        <div class="tool-card-title">
+          <span>${tool.icon}</span>
+          <span>${tool.name}</span>
+        </div>
+        <span class="badge ${tool.installed && tool.registered ? 'ok' : 'pending'}">
+          ${tool.installed && tool.registered ? '✓ Ready' : '○ Not installed'}
+        </span>
+      </div>
+      <div class="tool-card-desc">${tool.description}</div>
+      ${tool.installed && tool.registered
+        ? `<div class="tool-binary">Binary: <code>${tool.binary_path}</code></div>
+           <div class="btn-row">
+             <button class="btn btn-danger" style="font-size:12px;padding:6px 12px" onclick="uninstallTool('${tool.id}')">Remove</button>
+           </div>`
+        : `<div class="btn-row">
+             <button class="btn btn-primary" id="btn-install-${tool.id}" onclick="installTool('${tool.id}')">
+               ⬇ Install ${tool.name}
+             </button>
+           </div>`
+      }
+      <div id="tool-alert-${tool.id}" class="alert" style="margin-top:8px"></div>
+    </div>
+  `).join('');
+}
+
+async function installTool(toolId) {
+  const btn     = document.getElementById(`btn-install-${toolId}`);
+  const alertEl = document.getElementById(`tool-alert-${toolId}`);
+  const steps   = [
+    'Cloning repository...',
+    'Building binary (~30s)...',
+    'Verifying MCP handshake...',
+    'Registering with PicoClaw...'
+  ];
+  btn.disabled = true;
+  let stepIdx = 0;
+  btn.innerHTML = `<div class="spinner"></div> ${steps[0]}`;
+  const stepTimer = setInterval(() => {
+    stepIdx = Math.min(stepIdx + 1, steps.length - 1);
+    btn.innerHTML = `<div class="spinner"></div> ${steps[stepIdx]}`;
+  }, 8000);
+  try {
+    const fd = new FormData();
+    fd.append('tool_id', toolId);
+    const r    = await fetch('/api/tools/install', { method: 'POST', body: fd });
+    const data = await r.json();
+    clearInterval(stepTimer);
+    if (data.ok) {
+      alertEl.className = 'alert success visible';
+      alertEl.textContent = '✓ ' + data.message;
+      setTimeout(() => loadTools(), 1200);
+    } else {
+      alertEl.className = 'alert error visible';
+      alertEl.textContent = '✗ ' + data.message;
+      btn.innerHTML = '⬇ Retry';
+      btn.disabled = false;
+    }
+  } catch (e) {
+    clearInterval(stepTimer);
+    alertEl.className = 'alert error visible';
+    alertEl.textContent = '✗ Network error — check the wizard is still running';
+    btn.innerHTML = '⬇ Retry';
+    btn.disabled = false;
+  }
+}
+
+async function uninstallTool(toolId) {
+  if (!confirm('Remove this tool from PicoClaw config? The binary stays on disk.')) return;
+  const fd = new FormData(); fd.append('tool_id', toolId);
+  const r    = await fetch('/api/tools/uninstall', { method: 'POST', body: fd });
+  const data = await r.json();
+  if (data.ok) loadTools();
+  else showAlert('tools-global-alert', 'error', '✗ ' + data.message);
+}
+
+async function restartAfterTools() {
+  const alertEl = document.getElementById('tools-restart-alert');
+  alertEl.className = 'alert info visible';
+  alertEl.textContent = 'Restarting twin...';
+  const r    = await fetch('/api/restart-service', { method: 'POST' });
+  const data = await r.json();
+  if (data.ok) {
+    alertEl.className = 'alert success visible';
+    alertEl.textContent = '✓ Twin restarted — tools are now active';
+    setTimeout(() => { alertEl.className = 'alert'; }, 4000);
+  } else {
+    alertEl.className = 'alert error visible';
+    alertEl.textContent = '✗ ' + data.message;
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
 runSystemCheck();
+checkPicoClawVersion();
 </script>
 </body>
 </html>
