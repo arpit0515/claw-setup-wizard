@@ -549,6 +549,14 @@
           <button class="btn btn-primary" id="btn-update-picoclaw" onclick="updatePicoclaw()">⬆ Update PicoClaw</button>
         </div>
       </div>
+      <div class="card" id="picoclaw-update-card" style="display:none;border-color:var(--warning)">
+        <div class="card-title">PicoClaw Update Available</div>
+        <div id="update-info" style="font-size:13px;color:var(--text2);margin-bottom:12px"></div>
+        <div id="update-alert" class="alert"></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="btn-update-picoclaw" onclick="updatePicoclaw()">⬆ Update PicoClaw</button>
+        </div>
+      </div>
       <div id="install-picoclaw-section">
         <div class="card" style="border-color: var(--warning)">
           <div class="card-title">PicoClaw Not Found</div>
@@ -788,6 +796,56 @@
           </div>
         </div>
         <p style="font-size:12px;color:var(--text2);margin-top:8px">OAuth credentials are served securely — no setup needed. Click Add Account to connect.</p>
+      </div>
+
+      <!-- Tools grid -->
+      <div class="card">
+        <div class="card-title">Available Tools</div>
+        <div id="tools-loading" style="padding:12px 0;color:var(--text2);font-size:13px">
+          <div class="spinner" style="display:inline-block;margin-right:8px"></div> Loading tools registry...
+        </div>
+        <div id="tools-grid" style="display:none"></div>
+      </div>
+
+      <!-- Connected accounts -->
+      <div class="card" id="accounts-card" style="display:none">
+        <div class="card-title">Connected Accounts</div>
+        <div id="accounts-list"></div>
+        <div class="btn-row" style="margin-top:12px">
+          <button class="btn btn-primary" onclick="startOAuth()">＋ Add Account</button>
+        </div>
+      </div>
+
+      <!-- OAuth in-progress -->
+      <div class="card" id="oauth-progress-card" style="display:none;border-color:var(--accent)">
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0">
+          <div class="spinner"></div>
+          <span style="font-size:13px">Waiting for Google authorization in browser...</span>
+        </div>
+        <p style="font-size:12px;color:var(--text2);margin-top:8px">A browser window opened on your Pi. Sign in and approve access, then return here.</p>
+        <div id="oauth-alert" class="alert"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="loadTools()">↻ Refresh</button>
+      </div>
+    </div>
+
+    <!-- STEP 5: Connected Tools -->
+    <div class="section" id="step-5">
+      <h2>Connected Tools</h2>
+      <p class="subtitle">Connect your email and calendar so your agent can read, summarise and brief you daily.</p>
+
+      <!-- OAuth status -->
+      <div class="card">
+        <div class="card-title">Google OAuth</div>
+        <div class="status-row">
+          <div class="status-left">
+            <span class="status-label">ClawTools OAuth config</span>
+            <span class="status-detail">Served securely from claw-tools.dev</span>
+          </div>
+          <span class="badge ok">✓ Ready</span>
+        </div>
       </div>
 
       <!-- Tools grid -->
@@ -1138,8 +1196,12 @@ async function installService() {
     document.getElementById('launch-success').style.display = 'block';
     document.getElementById('progress').style.width = '100%';
     markDone(4); state.service = true;
-    loadFinalChecklist();
-  } else { showAlert('service-alert', 'error', '✗ ' + data.message); }
+    // Wait 2s for systemd to actually start before re-checking status
+    setTimeout(() => loadFinalChecklist(), 2000);
+  } else {
+    showAlert('service-alert', 'error', '✗ ' + data.message);
+    document.getElementById('service-install-card').style.display = 'block';
+  }
 }
 
 function populateLLM() {
