@@ -1219,6 +1219,9 @@ const categoryIcon = { email: '✉️', calendar: '📅', utility: '🔧' };
 
 async function loadTools() {
   checkCredentials();
+
+  await fetch('/api/tools/refresh', { method: 'POST' });
+
   document.getElementById('tools-loading').style.display = 'block';
   document.getElementById('tools-grid').style.display = 'none';
 

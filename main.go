@@ -51,6 +51,15 @@ func main() {
 	mux.HandleFunc("/api/oauth/revoke", handleOAuthRevoke)
 	mux.HandleFunc("/api/oauth/creds-status", handleCredsStatus)
 	mux.HandleFunc("/oauth/callback", handleOAuthCallback)
+	mux.HandleFunc("/api/tools/refresh", func(w http.ResponseWriter, r *http.Request) {
+		tools, err := fetchToolsRegistry()
+		if err != nil {
+			errorResponse(w, err.Error())
+			return
+		}
+		autoWriteToolsMD(tools)
+		okResponse(w, "TOOLS.md refreshed", nil)
+	})
 
 	ip := getLocalIP()
 	fmt.Println(" *** claw-setup is running **** ")

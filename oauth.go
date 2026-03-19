@@ -538,6 +538,8 @@ func autoConfigureFromRegistry() {
 	}
 	fmt.Fprintf(os.Stderr, "auto-configure: config updated successfully\n")
 
+	autoWriteToolsMD(tools)
+
 	// Ping user via Telegram for each tool that was configured
 	for _, t := range tools {
 		if t.Status != "available" {
@@ -545,6 +547,37 @@ func autoConfigureFromRegistry() {
 		}
 		sendToolConnectedPing(t)
 	}
+}
+
+func autoWriteToolsMD(tools []ClawTool) {
+	home, _ := os.UserHomeDir()
+	workspaceDir := filepath.Join(home, ".picoclaw", "workspace")
+	os.MkdirAll(workspaceDir, 0755)
+
+	var sb strings.Builder
+	sb.WriteString("# Available Tools\n\n")
+	sb.WriteString("When asked about any of the following, call the HTTP endpoints directly.\n\n")
+
+	for _, t := range tools {
+		if t.Status != "available" {
+			continue
+		}
+		accounts, _ := listConnectedAccounts()
+		if len(t.RequiresAuth) > 0 && len(accounts) == 0 {
+			continue
+		}
+		sb.WriteString(fmt.Sprintf("## %s (http://localhost:%d)\n", t.Name, t.HTTPPort))
+		sb.WriteString(fmt.Sprintf("%s\n\n", t.Description))
+		for _, tool := range t.MCPTools {
+			sb.WriteString(fmt.Sprintf("- `%s` → GET http://localhost:%d/%s\n",
+				tool, t.HTTPPort, strings.ReplaceAll(tool, "_", "/")))
+		}
+		sb.WriteString("\n")
+	}
+
+	path := filepath.Join(workspaceDir, "TOOLS.md")
+	os.WriteFile(path, []byte(sb.String()), 0644)
+	fmt.Fprintf(os.Stderr, "auto-configure: TOOLS.md written to %s\n", path)
 }
 
 func installToolService(id string, port int, startCmd string, toolDir string, home string) {
