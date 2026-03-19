@@ -1119,6 +1119,14 @@ async function loadFinalChecklist() {
       <span class="check">${ok ? '✅' : '⭕'}</span>
       <span>${label}</span>
     </div>`).join('');
+
+  // If service already running — hide install card, show success
+  if (data.service_status === 'active') {
+    document.getElementById('service-install-card').style.display = 'none';
+    document.getElementById('launch-success').style.display = 'block';
+    document.getElementById('progress').style.width = '100%';
+    markDone(4);
+  }
 }
 
 async function installService() {
