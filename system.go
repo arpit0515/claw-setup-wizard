@@ -58,7 +58,6 @@ func initDirs() {
 	os.MkdirAll(filepath.Join(home, ".picoclaw", "config"), 0755)
 	os.MkdirAll(filepath.Join(home, ".picoclaw", "tokens"), 0700)
 
-	// Lock down credentials file if it exists
 	credsFile := filepath.Join(home, ".picoclaw", "config", "google_credentials.json")
 	if _, err := os.Stat(credsFile); err == nil {
 		os.Chmod(credsFile, 0600)
@@ -99,6 +98,8 @@ func buildSystemStatus() SystemStatus {
 	if _, err := os.Stat(configPath); err == nil {
 		s.ConfigExists = true
 		cfg := readConfig()
+
+		// Support both legacy providers and new model_list format
 		if len(cfg.Providers) > 0 {
 			s.HasProvider = true
 			for name := range cfg.Providers {
@@ -106,7 +107,11 @@ func buildSystemStatus() SystemStatus {
 				break
 			}
 		}
-		// Read active model from agents.defaults
+		if !s.HasProvider && len(cfg.ModelList) > 0 {
+			s.HasProvider = true
+		}
+
+		// Active model — check agents.defaults then model_list
 		if defaults, ok := cfg.Agents["defaults"].(map[string]interface{}); ok {
 			if model, ok := defaults["model"].(string); ok && model != "" {
 				s.ActiveModel = model
@@ -115,11 +120,16 @@ func buildSystemStatus() SystemStatus {
 				s.ActiveProvider = provider
 			}
 		}
+		if s.ActiveModel == "" && len(cfg.ModelList) > 0 {
+			if name, ok := cfg.ModelList[0]["model_name"].(string); ok {
+				s.ActiveModel = name
+			}
+		}
 
 		if tg, ok := cfg.Channels["telegram"]; ok {
 			if token, ok := tg["token"].(string); ok && token != "" {
 				s.HasTelegram = true
-				s.TelegramToken = token[:10] + "..." // masked for security
+				s.TelegramToken = token[:10] + "..."
 			}
 			if users, ok := tg["allowFrom"].([]interface{}); ok && len(users) > 0 {
 				if uid, ok := users[0].(string); ok {
@@ -128,12 +138,6 @@ func buildSystemStatus() SystemStatus {
 			}
 		}
 	}
-	//	if tg, ok := cfg.Channels["telegram"]; ok {
-	//		if token, ok := tg["token"].(string); ok && token != "" {
-	//			s.HasTelegram = true
-	//		}
-	//	}
-	//}
 
 	// Soul.md
 	soulPath := getSoulPath()
@@ -165,14 +169,12 @@ func buildSystemStatus() SystemStatus {
 
 func getServiceStatus() string {
 	if runtime.GOOS == "darwin" {
-		// launchctl list returns a line with the label if loaded
 		out, err := runCommand("launchctl", "list", "com.picoclaw.agent")
 		if err == nil && !strings.Contains(out, "Could not find") && out != "" {
 			return "active"
 		}
 		return "inactive"
 	}
-	// Linux systemd
 	out, err := runCommand("systemctl", "--user", "is-active", "picoclaw")
 	if err == nil && strings.TrimSpace(out) == "active" {
 		return "active"
@@ -189,9 +191,7 @@ func getRAM() string {
 	return getLinuxRAM()
 }
 
-// macOS: vm_stat for free pages + sysctl for total
 func getMacRAM() string {
-	// Total RAM via sysctl
 	totalOut, err := runCommand("sysctl", "-n", "hw.memsize")
 	if err != nil {
 		return "unavailable"
@@ -200,19 +200,15 @@ func getMacRAM() string {
 	if err != nil {
 		return "unavailable"
 	}
-
-	// Free pages via vm_stat
 	vmOut, err := runCommand("vm_stat")
 	if err != nil {
 		return "unavailable"
 	}
-
 	var pageSize int64 = 4096
 	var freePages, inactivePages int64
 	for _, line := range strings.Split(vmOut, "\n") {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "Mach Virtual Memory Statistics") {
-			// Extract page size: "page size of 4096 bytes"
 			var ps int64
 			if _, err := fmt.Sscanf(line, "Mach Virtual Memory Statistics: (page size of %d bytes)", &ps); err == nil {
 				pageSize = ps
@@ -228,18 +224,15 @@ func getMacRAM() string {
 			inactivePages = val
 		}
 	}
-
 	freeBytes := (freePages + inactivePages) * pageSize
 	return formatBytes(freeBytes) + " free of " + formatBytes(totalBytes)
 }
 
-// Linux: read /proc/meminfo directly — works everywhere, no column guessing
 func getLinuxRAM() string {
 	data, err := os.ReadFile("/proc/meminfo")
 	if err != nil {
 		return "unavailable"
 	}
-
 	var totalKB, availKB int64
 	for _, line := range strings.Split(string(data), "\n") {
 		fields := strings.Fields(line)
@@ -257,7 +250,6 @@ func getLinuxRAM() string {
 			availKB = val
 		}
 	}
-
 	if totalKB == 0 {
 		return "unavailable"
 	}
@@ -275,11 +267,13 @@ func formatBytes(b int64) string {
 
 // ------- Config Helpers -------
 
+// PicoConfig supports both legacy providers format and new model_list format (v0.2.x)
 type PicoConfig struct {
 	Agents    map[string]interface{}            `json:"agents,omitempty"`
 	Providers map[string]map[string]interface{} `json:"providers,omitempty"`
 	Channels  map[string]map[string]interface{} `json:"channels,omitempty"`
 	Tools     map[string]interface{}            `json:"tools,omitempty"`
+	ModelList []map[string]interface{}          `json:"model_list,omitempty"`
 }
 
 func getConfigPath() string {

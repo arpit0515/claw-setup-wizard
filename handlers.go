@@ -10,27 +10,19 @@ import (
 	"strings"
 )
 
-// ── LLM ──────────────────────────────────────────────────────────────────────
-
 func handleValidateLLM(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
 	r.ParseMultipartForm(10 << 20)
-
-	// DEBGGING
-
 	provider := strings.TrimSpace(r.FormValue("provider"))
 	apiKey := strings.TrimSpace(r.FormValue("api_key"))
 	model := strings.TrimSpace(r.FormValue("model"))
-
 	if provider == "" || model == "" {
 		errorResponse(w, "provider and model are required")
 		return
 	}
-
-	// No key supplied — fall back to whatever is already saved in config
 	if apiKey == "" {
 		cfg := readConfig()
 		if p, ok := cfg.Providers[provider]; ok {
@@ -41,7 +33,6 @@ func handleValidateLLM(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, "No API key provided and none saved for this provider")
 		return
 	}
-
 	ok, msg := validateLLMKey(provider, apiKey, model)
 	if ok {
 		cfg := readConfig()
@@ -51,24 +42,20 @@ func handleValidateLLM(w http.ResponseWriter, r *http.Request) {
 		if cfg.Agents == nil {
 			cfg.Agents = make(map[string]interface{})
 		}
-		cfg.Providers[provider] = map[string]interface{}{
-			"api_key": apiKey,
-		}
+		cfg.Providers[provider] = map[string]interface{}{"api_key": apiKey}
 		if provider == "openrouter" {
 			cfg.Providers[provider]["api_base"] = "https://openrouter.ai/api/v1"
 		}
-		cfg.Agents["defaults"] = map[string]interface{}{
-			"model": model,
+		cfg.Agents["defaults"] = map[string]interface{}{"model": model}
+		modelEntry := map[string]interface{}{"model_name": model, "model": provider + "/" + model, "api_key": apiKey}
+		if provider == "openrouter" {
+			modelEntry["api_base"] = "https://openrouter.ai/api/v1"
 		}
+		cfg.ModelList = []map[string]interface{}{modelEntry}
 		writeConfig(cfg)
 	}
-	jsonResponse(w, map[string]interface{}{
-		"ok":      ok,
-		"message": msg,
-	})
+	jsonResponse(w, map[string]interface{}{"ok": ok, "message": msg})
 }
-
-// ── Telegram ──────────────────────────────────────────────────────────────────
 
 func handleValidateTelegram(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -81,24 +68,16 @@ func handleValidateTelegram(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, "token is required")
 		return
 	}
-
 	ok, msg, username := validateTelegramToken(token)
 	if ok {
 		cfg := readConfig()
 		if cfg.Channels == nil {
 			cfg.Channels = make(map[string]map[string]interface{})
 		}
-		cfg.Channels["telegram"] = map[string]interface{}{
-			"enabled": true,
-			"token":   token,
-		}
+		cfg.Channels["telegram"] = map[string]interface{}{"enabled": true, "token": token}
 		writeConfig(cfg)
 	}
-	jsonResponse(w, map[string]interface{}{
-		"ok":       ok,
-		"message":  msg,
-		"username": username,
-	})
+	jsonResponse(w, map[string]interface{}{"ok": ok, "message": msg, "username": username})
 }
 
 func handleSaveTelegramUser(w http.ResponseWriter, r *http.Request) {
@@ -112,7 +91,6 @@ func handleSaveTelegramUser(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, "user_id is required")
 		return
 	}
-
 	cfg := readConfig()
 	if cfg.Channels == nil {
 		cfg.Channels = make(map[string]map[string]interface{})
@@ -136,7 +114,6 @@ func handlePingTelegram(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, "chat_id is required")
 		return
 	}
-
 	cfg := readConfig()
 	tg := cfg.Channels["telegram"]
 	if tg == nil {
@@ -148,15 +125,9 @@ func handlePingTelegram(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, "No token found — complete token validation first")
 		return
 	}
-
 	ok, msg := sendTelegramPing(token, chatID)
-	jsonResponse(w, map[string]interface{}{
-		"ok":      ok,
-		"message": msg,
-	})
+	jsonResponse(w, map[string]interface{}{"ok": ok, "message": msg})
 }
-
-// ── Soul ──────────────────────────────────────────────────────────────────────
 
 func handleGenerateSoul(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -164,23 +135,9 @@ func handleGenerateSoul(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.ParseMultipartForm(10 << 20)
-
-	answers := SoulAnswers{
-		Name:      r.FormValue("name"),
-		UserName:  r.FormValue("user_name"),
-		Role:      r.FormValue("role"),
-		Expertise: r.FormValue("expertise"),
-		Style:     r.FormValue("style"),
-		Goals:     r.FormValue("goals"),
-		Dislikes:  r.FormValue("dislikes"),
-		Decisions: r.FormValue("decisions"),
-	}
-
+	answers := SoulAnswers{Name: r.FormValue("name"), UserName: r.FormValue("user_name"), Role: r.FormValue("role"), Expertise: r.FormValue("expertise"), Style: r.FormValue("style"), Goals: r.FormValue("goals"), Dislikes: r.FormValue("dislikes"), Decisions: r.FormValue("decisions")}
 	soul := generateSoulMD(answers)
-	jsonResponse(w, map[string]interface{}{
-		"ok":   true,
-		"soul": soul,
-	})
+	jsonResponse(w, map[string]interface{}{"ok": true, "soul": soul})
 }
 
 func handleSaveSoul(w http.ResponseWriter, r *http.Request) {
@@ -194,30 +151,22 @@ func handleSaveSoul(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, "soul_content is required")
 		return
 	}
-
 	soulPath := getSoulPath()
 	os.MkdirAll(filepath.Dir(soulPath), 0755)
-	err := os.WriteFile(soulPath, []byte(content), 0644)
-	if err != nil {
+	if err := os.WriteFile(soulPath, []byte(content), 0644); err != nil {
 		errorResponse(w, "Failed to write SOUL.md: "+err.Error())
 		return
 	}
 	okResponse(w, "SOUL.md saved to "+soulPath, nil)
 }
 
-// ── Service ───────────────────────────────────────────────────────────────────
-
 func handleInstallService(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
-
 	ok, msg := installSystemdService()
-	jsonResponse(w, map[string]interface{}{
-		"ok":      ok,
-		"message": msg,
-	})
+	jsonResponse(w, map[string]interface{}{"ok": ok, "message": msg})
 }
 
 func installSystemdService() (bool, string) {
@@ -225,38 +174,15 @@ func installSystemdService() (bool, string) {
 	if err != nil {
 		return false, "picoclaw not found in PATH"
 	}
-
 	home, _ := os.UserHomeDir()
 	serviceDir := filepath.Join(home, ".config", "systemd", "user")
 	os.MkdirAll(serviceDir, 0755)
-
-	serviceContent := fmt.Sprintf(`[Unit]
-Description=PicoClaw AI Agent
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=%s gateway
-Restart=on-failure
-RestartSec=5
-WorkingDirectory=%s
-Environment=HOME=%s
-
-[Install]
-WantedBy=default.target
-`, picocławPath, home, home)
-
+	serviceContent := fmt.Sprintf("[Unit]\nDescription=PicoClaw AI Agent\nAfter=network.target\n\n[Service]\nType=simple\nExecStart=%s gateway\nRestart=on-failure\nRestartSec=5\nWorkingDirectory=%s\nEnvironment=HOME=%s\n\n[Install]\nWantedBy=default.target\n", picocławPath, home, home)
 	servicePath := filepath.Join(serviceDir, "picoclaw.service")
 	if err := os.WriteFile(servicePath, []byte(serviceContent), 0644); err != nil {
 		return false, "Failed to write service file: " + err.Error()
 	}
-
-	commands := [][]string{
-		{"systemctl", "--user", "daemon-reload"},
-		{"systemctl", "--user", "enable", "picoclaw"},
-		{"systemctl", "--user", "start", "picoclaw"},
-	}
-	for _, cmd := range commands {
+	for _, cmd := range [][]string{{"systemctl", "--user", "daemon-reload"}, {"systemctl", "--user", "enable", "picoclaw"}, {"systemctl", "--user", "start", "picoclaw"}} {
 		if out, err := exec.Command(cmd[0], cmd[1:]...).CombinedOutput(); err != nil {
 			return false, strings.TrimSpace(string(out))
 		}
@@ -264,14 +190,11 @@ WantedBy=default.target
 	return true, "Service installed and started"
 }
 
-// ── Restart ──────────────────────────────────────────────────────────────────
-
 func handleRestartService(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
-
 	var out string
 	var err error
 	if runtime.GOOS == "darwin" {
@@ -281,7 +204,6 @@ func handleRestartService(w http.ResponseWriter, r *http.Request) {
 	} else {
 		out, err = runCommand("systemctl", "--user", "restart", "picoclaw")
 	}
-
 	if err != nil {
 		msg := strings.TrimSpace(out)
 		if msg == "" {
@@ -293,40 +215,24 @@ func handleRestartService(w http.ResponseWriter, r *http.Request) {
 	okResponse(w, "Agent restarted", nil)
 }
 
-// ── Local IP ─────────────────────────────────────────────────────────────────
-
 func handleLocalIP(w http.ResponseWriter, r *http.Request) {
-	jsonResponse(w, map[string]interface{}{
-		"ip": getLocalIP(),
-	})
+	jsonResponse(w, map[string]interface{}{"ip": getLocalIP()})
 }
-
-// ── Health ────────────────────────────────────────────────────────────────────
 
 func handleHealth(w http.ResponseWriter, r *http.Request) {
 	status := buildSystemStatus()
 	cfg := readConfig()
-
-	// Get current model
 	model := ""
 	if defaults, ok := cfg.Agents["defaults"].(map[string]interface{}); ok {
 		model, _ = defaults["model"].(string)
 	}
-
-	// Get bot username
 	botUsername := ""
 	if tg, ok := cfg.Channels["telegram"]; ok {
 		if token, ok := tg["token"].(string); ok && token != "" {
 			_, _, botUsername = validateTelegramToken(token)
 		}
 	}
-
-	jsonResponse(w, map[string]interface{}{
-		"status":       status,
-		"model":        model,
-		"bot_username": botUsername,
-		"uptime":       getUptime(),
-	})
+	jsonResponse(w, map[string]interface{}{"status": status, "model": model, "bot_username": botUsername, "uptime": getUptime()})
 }
 
 func getUptime() string {
@@ -337,90 +243,64 @@ func getUptime() string {
 	return out
 }
 
-
 func handleInstallPicoclaw(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
-
-	// Detect architecture
 	out, err := runCommand("uname", "-m")
 	if err != nil {
 		errorResponse(w, "Could not detect architecture")
 		return
 	}
-
 	var picoArch string
 	switch strings.TrimSpace(out) {
 	case "aarch64":
-	    picoArch = "arm64"
-	case "armv7l":
-	    picoArch = "arm"
+		picoArch = "arm64"
+	case "armv7l", "armv6l":
+		picoArch = "armv6"
 	case "x86_64":
-	    picoArch = "x86_64"
+		picoArch = "x86_64"
 	default:
-	    errorResponse(w, "Unsupported architecture: "+out)
-	    return
+		errorResponse(w, "Unsupported architecture: "+out)
+		return
 	}
-
 	tarName := "picoclaw_Linux_" + picoArch + ".tar.gz"
 	url := "https://github.com/sipeed/picoclaw/releases/latest/download/" + tarName
 	tmpTar := "/tmp/" + tarName
 	tmpDir := "/tmp/picoclaw-extract"
 	finalPath := "/usr/local/bin/picoclaw"
-
-	// Download with redirect follow
-	_, err = runCommand("wget", "-L", "-q", "-O", tmpTar, url)
-	if err != nil {
-	    errorResponse(w, "Download failed: "+err.Error())
-	    return
+	if _, err = runCommand("wget", "-L", "-q", "-O", tmpTar, url); err != nil {
+		errorResponse(w, "Download failed: "+err.Error())
+		return
 	}
-
-	// Extract
 	os.MkdirAll(tmpDir, 0755)
-	_, err = runCommand("tar", "-xzf", tmpTar, "-C", tmpDir)
-	if err != nil {
-	    errorResponse(w, "Extract failed: "+err.Error())
-	    return
+	if _, err = runCommand("tar", "-xzf", tmpTar, "-C", tmpDir); err != nil {
+		errorResponse(w, "Extract failed: "+err.Error())
+		return
 	}
-
-	// Find the binary inside extracted folder
-	_, err = runCommand("sudo", "mv", tmpDir+"/picoclaw", finalPath)
-	if err != nil {
-	    // try root of extract dir
-	    errorResponse(w, "Could not find picoclaw binary in archive: "+err.Error())
-	    return
+	if _, err = runCommand("sudo", "mv", tmpDir+"/picoclaw", finalPath); err != nil {
+		errorResponse(w, "Could not find picoclaw binary in archive: "+err.Error())
+		return
 	}
-
-	// Cleanup
 	os.Remove(tmpTar)
 	os.RemoveAll(tmpDir)
-
-	// Verify
 	path, err := exec.LookPath("picoclaw")
 	if err != nil || path == "" {
 		errorResponse(w, "Installed but not found in PATH — restart the wizard")
 		return
 	}
-
 	okResponse(w, "PicoClaw installed at "+path, nil)
 }
-
-
-// ---- Handling Models
 
 func handleGetModels(w http.ResponseWriter, r *http.Request) {
 	r.ParseMultipartForm(10 << 20)
 	provider := strings.TrimSpace(r.FormValue("provider"))
 	apiKey := strings.TrimSpace(r.FormValue("api_key"))
-
 	if provider != "openrouter" {
 		errorResponse(w, "provider required")
 		return
 	}
-
-	// No key supplied — fall back to whatever is already saved in config
 	if apiKey == "" {
 		cfg := readConfig()
 		if p, ok := cfg.Providers[provider]; ok {
@@ -431,15 +311,10 @@ func handleGetModels(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, "No API key provided and none saved for this provider")
 		return
 	}
-
 	models, err := fetchOpenRouterModels(apiKey)
 	if err != nil {
 		errorResponse(w, "Failed to fetch models: "+err.Error())
 		return
 	}
-
-	jsonResponse(w, map[string]interface{}{
-		"ok":     true,
-		"models": models,
-	})
+	jsonResponse(w, map[string]interface{}{"ok": true, "models": models})
 }
