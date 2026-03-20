@@ -68,10 +68,11 @@ func tokenFileForEmail(email string) string {
 	return filepath.Join(tokensDir(), safe+".enc")
 }
 
-// toolsRepoDir returns ~/claw-tools.dev — the local clone of the tools repo.
+// toolsRepoDir returns ~/.picoclaw/workspace/tools — inside the workspace so
+// PicoClaw's exec safety guard can reach the binaries.
 func toolsRepoDir() string {
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, "claw-tools.dev")
+	return filepath.Join(home, ".picoclaw", "workspace", "tools")
 }
 
 // toolBinaryPath returns the path to the compiled binary for a tool.
@@ -503,6 +504,26 @@ func handleCredsStatus(w http.ResponseWriter, r *http.Request) {
 
 // ── Tool installation ─────────────────────────────────────────────────────────
 
+
+// copyFile copies src to dst, making dst executable.
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	os.Remove(dst)
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
+	return os.Chmod(dst, 0755)
+}
+
 // ensureToolsRepo clones claw-tools.dev if not present, or pulls latest if it is.
 func ensureToolsRepo() error {
 	repoDir := toolsRepoDir()
@@ -517,7 +538,7 @@ func ensureToolsRepo() error {
 		return nil
 	}
 
-	fmt.Fprintf(os.Stderr, "tools-repo: cloning %s...\n", toolsRepoCloneURL)
+	fmt.Fprintf(os.Stderr, "tools-repo: cloning %s to %s...\n", toolsRepoCloneURL, repoDir)
 	cmd := exec.Command("git", "clone", "--depth=1", toolsRepoCloneURL, repoDir)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("git clone failed: %s", strings.TrimSpace(string(out)))
@@ -560,6 +581,7 @@ func buildTool(t ClawTool, goBin string) error {
 }
 
 // ── Auto-configure ────────────────────────────────────────────────────────────
+
 
 // writeGoogleCredentials writes google_credentials.json so ClawTools can
 // initialize their own OAuth client to refresh tokens independently.
@@ -702,6 +724,7 @@ func autoConfigureFromRegistry() {
 	}
 }
 
+
 // ensureMCPSkill installs the openclaw-mcp-plugin skill if not already present.
 // This skill is what enables PicoClaw to actually call MCP server tools.
 func ensureMCPSkill() {
@@ -726,26 +749,70 @@ func autoWriteSkillFile(tools []ClawTool, home string) {
 	skillDir := filepath.Join(home, ".picoclaw", "workspace", "skills", "clawtools")
 	os.MkdirAll(skillDir, 0755)
 
-	var sb strings.Builder
-	sb.WriteString("# ClawTools\n\n")
-	sb.WriteString("You have MCP tools available for the following services. ")
-	sb.WriteString("Use them directly when the user asks about emails, calendar, or any connected service.\n\n")
-
+	// Copy binaries into workspace/bin so exec safety guard allows them
+	workspaceBin := filepath.Join(home, ".picoclaw", "workspace", "bin")
+	os.MkdirAll(workspaceBin, 0755)
 	for _, t := range tools {
-		sb.WriteString(fmt.Sprintf("## %s\n%s\n\nAvailable MCP tools:\n", t.Name, t.Description))
-		for _, tool := range t.MCPTools {
-			sb.WriteString(fmt.Sprintf("- `%s`\n", tool))
-		}
-		sb.WriteString("\n")
+		src := toolBinaryPath(t)
+		dst := filepath.Join(workspaceBin, t.ID+"-mcp")
+		copyFile(src, dst)
 	}
 
-	sb.WriteString("## Instructions\n")
-	sb.WriteString("- When asked about emails: use `gmail_list` or `gmail_search`\n")
-	sb.WriteString("- When asked about calendar/schedule: use `gcal_today` or `gcal_upcoming`\n")
-	sb.WriteString("- Always use these tools rather than saying you don't have access\n")
+	// Use relative ./bin/ paths — works within exec sandbox
+	gmailBin := "./bin/gmail-mcp"
+	gcalBin := "./bin/gcal-mcp"
+
+	skill := fmt.Sprintf(`# ClawTools — Gmail & Google Calendar
+
+You have direct access to Gmail and Google Calendar via local binaries.
+Use the exec tool to call them. Always use -jc flags for compact JSON output.
+
+## How to call tools
+
+Use the exec tool with these exact commands:
+
+### Gmail
+
+List recent emails:
+` + "```" + `
+exec: %s -mode mcp <<'EOF'
+{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"gmail_list","arguments":{"max_results":5}}}
+EOF
+` + "```" + `
+
+Search emails:
+` + "```" + `
+exec: %s -mode mcp <<'EOF'
+{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"gmail_search","arguments":{"query":"is:unread","max_results":5}}}
+EOF
+` + "```" + `
+
+### Google Calendar
+
+Today's events:
+` + "```" + `
+exec: %s -mode mcp <<'EOF'
+{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"gcal_today","arguments":{}}}
+EOF
+` + "```" + `
+
+Upcoming events (next 7 days):
+` + "```" + `
+exec: %s -mode mcp <<'EOF'
+{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"gcal_upcoming","arguments":{"days":7}}}
+EOF
+` + "```" + `
+
+## Rules
+- ALWAYS use exec with the commands above when asked about emails or calendar
+- NEVER say you don't have access to emails or calendar
+- NEVER install or suggest porteden or any other email tool
+- Parse the JSON result and present it in a readable format
+- If result is empty array, say "No emails found" or "No events today"
+`, gmailBin, gmailBin, gcalBin, gcalBin)
 
 	path := filepath.Join(skillDir, "SKILL.md")
-	if err := os.WriteFile(path, []byte(sb.String()), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(skill), 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "auto-configure: could not write SKILL.md: %v\n", err)
 		return
 	}
