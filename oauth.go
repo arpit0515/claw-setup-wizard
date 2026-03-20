@@ -628,6 +628,11 @@ func writeGoogleCredentials() error {
 func autoConfigureFromRegistry() {
 	fmt.Fprintf(os.Stderr, "auto-configure: starting...\n")
 
+	// Always ensure credentials file exists — needed by ClawTools to refresh tokens
+	if err := writeGoogleCredentials(); err != nil {
+		fmt.Fprintf(os.Stderr, "auto-configure: warning — could not write credentials: %v\n", err)
+	}
+
 	tools, err := fetchToolsRegistry()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "auto-configure: could not fetch tools registry: %v\n", err)
