@@ -433,6 +433,10 @@ func handleOAuthStatus(w http.ResponseWriter, r *http.Request) {
 			errorResponse(w, "Could not save token: "+err.Error())
 			return
 		}
+		// Write google_credentials.json so ClawTools can refresh tokens independently
+		if err := writeGoogleCredentials(); err != nil {
+			fmt.Fprintf(os.Stderr, "oauth: warning — could not write credentials file: %v\n", err)
+		}
 		// Clone + build + configure in background so OAuth response is instant
 		go autoConfigureFromRegistry()
 		jsonResponse(w, map[string]interface{}{
@@ -556,6 +560,39 @@ func buildTool(t ClawTool, goBin string) error {
 }
 
 // ── Auto-configure ────────────────────────────────────────────────────────────
+
+// writeGoogleCredentials writes google_credentials.json so ClawTools can
+// initialize their own OAuth client to refresh tokens independently.
+// The file format matches what Google's OAuth2 library expects.
+func writeGoogleCredentials() error {
+	cfg, err := fetchOAuthConfig()
+	if err != nil {
+		return fmt.Errorf("could not fetch oauth config: %w", err)
+	}
+	home, _ := os.UserHomeDir()
+	credsPath := filepath.Join(home, ".picoclaw", "config", "google_credentials.json")
+	os.MkdirAll(filepath.Dir(credsPath), 0755)
+
+	creds := map[string]interface{}{
+		"installed": map[string]interface{}{
+			"client_id":                   cfg.ClientID,
+			"client_secret":               cfg.ClientSecret,
+			"auth_uri":                    "https://accounts.google.com/o/oauth2/auth",
+			"token_uri":                   "https://oauth2.googleapis.com/token",
+			"auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+			"redirect_uris":               []string{"http://localhost"},
+		},
+	}
+	data, err := json.MarshalIndent(creds, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(credsPath, data, 0600); err != nil {
+		return err
+	}
+	fmt.Fprintf(os.Stderr, "oauth: wrote google_credentials.json to %s\n", credsPath)
+	return nil
+}
 
 // autoConfigureFromRegistry is the single source of truth for wiring ClawTools
 // into PicoClaw. Flow:
