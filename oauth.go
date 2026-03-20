@@ -717,6 +717,11 @@ func autoConfigureFromRegistry() {
 
 	autoWriteSkillFile(configuredTools, home)
 
+	// Re-write AGENTS.md and TOOLS.md now that we know which tools are installed.
+	// writeIfAbsent in writeWorkspaceFiles means files the user edited are safe.
+	agentName, ownerName := resolveAgentIdentity()
+	writeWorkspaceFiles(configuredTools, agentName, ownerName)
+
 	// Install the MCP integration skill so PicoClaw can actually call MCP servers
 	ensureMCPSkill()
 
