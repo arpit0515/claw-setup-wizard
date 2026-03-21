@@ -1865,6 +1865,75 @@ document.getElementById('uninstall-confirm-input').addEventListener('input', fun
   btn.disabled = !ok;
   btn.style.opacity = ok ? '0.9' : '0.5';
 });
+
+
+// ── Paste these into index.html just before the closing </script> tag ─────────
+
+// ── pingTelegramFrom ──────────────────────────────────────────────────────────
+// Called by ping tiles on System Check (step 0) and Launch (step 4).
+// alertId  = id of the .alert div to show result in
+// tileId   = id of the .action-tile for loading state
+async function pingTelegramFrom(alertId, tileId) {
+  const tile = document.getElementById(tileId);
+  if (tile) tile.classList.add('loading');
+
+  // Prefer the input field value (step 2), fall back to systemData
+  const chatID = (document.getElementById('tg-userid')?.value?.trim())
+              || (systemData?.telegram_user)
+              || '';
+
+  if (!chatID) {
+    showAlert(alertId, 'error', 'No Telegram user ID saved — complete Step 2 first');
+    if (tile) tile.classList.remove('loading');
+    return;
+  }
+
+  const fd = new FormData();
+  fd.append('chat_id', chatID);
+
+  const r = await fetch('/api/ping-telegram', { method: 'POST', body: fd });
+  const data = await r.json();
+
+  if (tile) tile.classList.remove('loading');
+  showAlert(alertId, data.ok ? 'success' : 'error',
+    data.ok ? '🏓 Ping sent — check your Telegram!' : '✗ ' + data.message);
+}
+
+// ── restartServiceFrom ────────────────────────────────────────────────────────
+// Called by restart tiles on System Check (step 0) and Launch (step 4).
+async function restartServiceFrom(alertId, tileId) {
+  const tile = document.getElementById(tileId);
+  if (tile) tile.classList.add('loading');
+
+  const r = await fetch('/api/restart-service', { method: 'POST' });
+  const data = await r.json();
+
+  if (tile) tile.classList.remove('loading');
+  showAlert(alertId, data.ok ? 'success' : 'error',
+    data.ok ? '✓ Agent restarted' : '✗ ' + (data.message || 'Restart failed'));
+}
+
+// ── revokeAccount ─────────────────────────────────────────────────────────────
+// Called by the Revoke button in the accounts list on Step 5 (Connected Tools).
+async function revokeAccount(email) {
+  if (!confirm(`Remove ${email}?\n\nThe saved token will be deleted. You can reconnect anytime.`)) {
+    return;
+  }
+
+  const fd = new FormData();
+  fd.append('email', email);
+
+  const r = await fetch('/api/oauth/revoke', { method: 'POST', body: fd });
+  const data = await r.json();
+
+  if (data.ok) {
+    loadTools(); // refreshes the whole tools view — accounts list will clear
+  } else {
+    alert('Failed to revoke: ' + data.message);
+  }
+}
+
+
 </script>
 </body>
 </html>
