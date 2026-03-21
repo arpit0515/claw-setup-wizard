@@ -678,6 +678,18 @@ func autoConfigureFromRegistry() {
 		cfg.Tools = make(map[string]interface{})
 	}
 
+	// Ensure workspace is explicitly set in agents.defaults — PicoClaw needs this
+	// to resolve the safety guard path check correctly.
+	if cfg.Agents == nil {
+		cfg.Agents = make(map[string]interface{})
+	}
+	defaults, _ := cfg.Agents["defaults"].(map[string]interface{})
+	if defaults == nil {
+		defaults = make(map[string]interface{})
+	}
+	defaults["workspace"] = filepath.Join(home, ".picoclaw", "workspace")
+	cfg.Agents["defaults"] = defaults
+
 	mcpServers := map[string]interface{}{}
 	configuredTools := []ClawTool{}
 	newlyInstalled := []ClawTool{} // only ping for tools installed this run
@@ -704,11 +716,12 @@ func autoConfigureFromRegistry() {
 
 		toolDir := filepath.Join(toolsRepoDir(), t.Dir)
 
-		// Point MCP config to compiled binary, not go run
+		// cwd must be inside workspace so PicoClaw's safety guard allows execution
+		workspaceBinDir := filepath.Join(home, ".picoclaw", "workspace", "bin")
 		mcpServers["claw-"+t.ID] = map[string]interface{}{
-			"command": binaryPath,
+			"command": filepath.Join(workspaceBinDir, t.ID+"-mcp"),
 			"args":    []string{"--mode", "mcp"},
-			"cwd":     toolDir,
+			"cwd":     workspaceBinDir,
 		}
 
 		installToolService(t.ID, t.HTTPPort, binaryPath, toolDir, home)
@@ -773,20 +786,27 @@ func autoWriteSkillFile(tools []ClawTool, home string) {
 	skillDir := filepath.Join(home, ".picoclaw", "workspace", "skills", "clawtools")
 	os.MkdirAll(skillDir, 0755)
 
-	// Use absolute paths to binaries — no copy needed, binaries are built in-place
-	// inside the repo's tools/ subfolder which is inside workspace so exec sandbox allows it
-	gmailBin := toolBinaryPath(ClawTool{ID: "gmail", Dir: "gmail"})
-	gcalBin := toolBinaryPath(ClawTool{ID: "gcal", Dir: "gcal"})
-
-	// Fall back to finding the binaries from the configured tools list
+	// Copy binaries into workspace/bin — PicoClaw's exec sandbox only allows
+	// execution of files inside the workspace directory. Binaries are built inside
+	// .claw-tools-repo which is inside workspace, but the sandbox uses path prefix
+	// matching so hidden dirs (.claw-tools-repo) may be blocked. workspace/bin is
+	// the guaranteed-safe location. Copy on every run so it stays in sync.
+	workspaceBin := filepath.Join(home, ".picoclaw", "workspace", "bin")
+	os.MkdirAll(workspaceBin, 0755)
 	for _, t := range tools {
-		switch t.ID {
-		case "gmail":
-			gmailBin = toolBinaryPath(t)
-		case "gcal":
-			gcalBin = toolBinaryPath(t)
+		src := toolBinaryPath(t)
+		dst := filepath.Join(workspaceBin, t.ID+"-mcp")
+		if err := copyFile(src, dst); err != nil {
+			fmt.Fprintf(os.Stderr, "skill: could not copy %s binary to workspace/bin: %v (src=%s)\n", t.ID, err, src)
+			continue
 		}
+		fmt.Fprintf(os.Stderr, "skill: copied %s-mcp → workspace/bin/\n", t.ID)
 	}
+
+	// Use absolute paths — PicoClaw's WorkingDirectory is $HOME, not the workspace,
+	// so relative ./bin/ paths resolve to ~/bin/ which doesn't exist.
+	gmailBin := filepath.Join(home, ".picoclaw", "workspace", "bin", "gmail-mcp")
+	gcalBin := filepath.Join(home, ".picoclaw", "workspace", "bin", "gcal-mcp")
 
 	skill := fmt.Sprintf(`# ClawTools — Gmail & Google Calendar
 
