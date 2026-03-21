@@ -511,7 +511,6 @@ func handleCredsStatus(w http.ResponseWriter, r *http.Request) {
 
 // ── Tool installation ─────────────────────────────────────────────────────────
 
-
 // copyFile copies src to dst, making dst executable.
 func copyFile(src, dst string) error {
 	in, err := os.Open(src)
@@ -595,7 +594,6 @@ func buildTool(t ClawTool, goBin string) error {
 }
 
 // ── Auto-configure ────────────────────────────────────────────────────────────
-
 
 // writeGoogleCredentials writes google_credentials.json so ClawTools can
 // initialize their own OAuth client to refresh tokens independently.
@@ -717,11 +715,9 @@ func autoConfigureFromRegistry() {
 		toolDir := filepath.Join(toolsRepoDir(), t.Dir)
 
 		// cwd must be inside workspace so PicoClaw's safety guard allows execution
-		workspaceBinDir := filepath.Join(home, ".picoclaw", "workspace", "bin")
+		// workspaceBinDir := filepath.Join(home, ".picoclaw", "workspace", "bin")
 		mcpServers["claw-"+t.ID] = map[string]interface{}{
-			"command": filepath.Join(workspaceBinDir, t.ID+"-mcp"),
-			"args":    []string{"--mode", "mcp"},
-			"cwd":     workspaceBinDir,
+			"url": fmt.Sprintf("http://localhost:%d/mcp", t.HTTPPort),
 		}
 
 		installToolService(t.ID, t.HTTPPort, binaryPath, toolDir, home)
@@ -756,7 +752,6 @@ func autoConfigureFromRegistry() {
 		sendToolConnectedPing(t)
 	}
 }
-
 
 // ── Skill file ────────────────────────────────────────────────────────────────
 
@@ -798,34 +793,34 @@ Use the exec tool with these exact commands:
 ### Gmail
 
 List recent emails:
-` + "```" + `
+`+"```"+`
 exec: %s -mode mcp <<'EOF'
 {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"gmail_list","arguments":{"max_results":5}}}
 EOF
-` + "```" + `
+`+"```"+`
 
 Search emails:
-` + "```" + `
+`+"```"+`
 exec: %s -mode mcp <<'EOF'
 {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"gmail_search","arguments":{"query":"is:unread","max_results":5}}}
 EOF
-` + "```" + `
+`+"```"+`
 
 ### Google Calendar
 
 Today's events:
-` + "```" + `
+`+"```"+`
 exec: %s -mode mcp <<'EOF'
 {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"gcal_today","arguments":{}}}
 EOF
-` + "```" + `
+`+"```"+`
 
 Upcoming events (next 7 days):
-` + "```" + `
+`+"```"+`
 exec: %s -mode mcp <<'EOF'
 {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"gcal_upcoming","arguments":{"days":7}}}
 EOF
-` + "```" + `
+`+"```"+`
 
 ## Rules
 - ALWAYS use exec with the commands above when asked about emails or calendar
