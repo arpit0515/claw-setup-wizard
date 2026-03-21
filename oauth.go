@@ -744,13 +744,9 @@ func autoConfigureFromRegistry() {
 
 	autoWriteSkillFile(configuredTools, home)
 
-	// Re-write AGENTS.md and TOOLS.md now that we know which tools are installed.
-	// writeIfAbsent in writeWorkspaceFiles means files the user edited are safe.
+	// Generate all missing workspace markdown files
 	agentName, ownerName := resolveAgentIdentity()
 	writeWorkspaceFiles(configuredTools, agentName, ownerName)
-
-	// Install the MCP integration skill so PicoClaw can actually call MCP servers
-	ensureMCPSkill()
 
 	runCommand("systemctl", "--user", "restart", "picoclaw")
 	fmt.Fprintf(os.Stderr, "auto-configure: picoclaw restarted\n")
@@ -761,24 +757,6 @@ func autoConfigureFromRegistry() {
 	}
 }
 
-
-// ensureMCPSkill installs the openclaw-mcp-plugin skill if not already present.
-// This skill is what enables PicoClaw to actually call MCP server tools.
-func ensureMCPSkill() {
-	home, _ := os.UserHomeDir()
-	skillDir := filepath.Join(home, ".picoclaw", "workspace", "skills", "openclaw-mcp-plugin")
-	if _, err := os.Stat(skillDir); err == nil {
-		fmt.Fprintf(os.Stderr, "mcp-skill: openclaw-mcp-plugin already installed\n")
-		return
-	}
-	fmt.Fprintf(os.Stderr, "mcp-skill: installing openclaw-mcp-plugin...\n")
-	out, err := runCommand("picoclaw", "skills", "install", "--registry", "clawhub", "openclaw-mcp-plugin")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "mcp-skill: install failed: %s\n", out)
-		return
-	}
-	fmt.Fprintf(os.Stderr, "mcp-skill: openclaw-mcp-plugin installed\n")
-}
 
 // ── Skill file ────────────────────────────────────────────────────────────────
 
