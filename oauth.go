@@ -68,11 +68,18 @@ func tokenFileForEmail(email string) string {
 	return filepath.Join(tokensDir(), safe+".enc")
 }
 
-// toolsRepoDir returns ~/.picoclaw/workspace/tools — inside the workspace so
-// PicoClaw's exec safety guard can reach the binaries.
-func toolsRepoDir() string {
+// clawToolsRepoDir is where the claw-tools.dev git repo is cloned.
+// Kept separate from the tools themselves so the .git folder stays out of the way.
+func clawToolsRepoDir() string {
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".picoclaw", "workspace", "tools")
+	return filepath.Join(home, ".picoclaw", "workspace", ".claw-tools-repo")
+}
+
+// toolsRepoDir returns the tools/ subfolder inside the cloned repo.
+// Binaries are built here — e.g. workspace/.claw-tools-repo/tools/gmail/gmail-mcp
+// t.Dir in tools.json should be just "gmail", "gcal" etc — no "tools/" prefix needed.
+func toolsRepoDir() string {
+	return filepath.Join(clawToolsRepoDir(), "tools")
 }
 
 // toolBinaryPath returns the path to the compiled binary for a tool.
@@ -509,35 +516,42 @@ func handleCredsStatus(w http.ResponseWriter, r *http.Request) {
 func copyFile(src, dst string) error {
 	in, err := os.Open(src)
 	if err != nil {
-		return err
+		return fmt.Errorf("open src %s: %w", src, err)
 	}
 	defer in.Close()
 	os.Remove(dst)
 	out, err := os.Create(dst)
 	if err != nil {
-		return err
+		return fmt.Errorf("create dst %s: %w", dst, err)
 	}
 	defer out.Close()
 	if _, err := io.Copy(out, in); err != nil {
-		return err
+		return fmt.Errorf("copy: %w", err)
 	}
-	return os.Chmod(dst, 0755)
+	if err := os.Chmod(dst, 0755); err != nil {
+		return fmt.Errorf("chmod: %w", err)
+	}
+	// Verify the file actually landed
+	if info, err := os.Stat(dst); err != nil || info.Size() == 0 {
+		return fmt.Errorf("post-copy verify failed for %s", dst)
+	}
+	return nil
 }
 
 // ensureToolsRepo clones claw-tools.dev if not present, or pulls latest if it is.
 func ensureToolsRepo() error {
-	repoDir := toolsRepoDir()
+	repoDir := clawToolsRepoDir()
 
 	if _, err := os.Stat(filepath.Join(repoDir, ".git")); err == nil {
 		fmt.Fprintf(os.Stderr, "tools-repo: pulling latest...\n")
 		cmd := exec.Command("git", "-C", repoDir, "pull", "--ff-only")
 		if out, err := cmd.CombinedOutput(); err != nil {
-			// Non-fatal — continue with whatever version we have
 			fmt.Fprintf(os.Stderr, "tools-repo: pull warning: %s\n", strings.TrimSpace(string(out)))
 		}
 		return nil
 	}
 
+	os.MkdirAll(filepath.Dir(repoDir), 0755)
 	fmt.Fprintf(os.Stderr, "tools-repo: cloning %s to %s...\n", toolsRepoCloneURL, repoDir)
 	cmd := exec.Command("git", "clone", "--depth=1", toolsRepoCloneURL, repoDir)
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -759,18 +773,20 @@ func autoWriteSkillFile(tools []ClawTool, home string) {
 	skillDir := filepath.Join(home, ".picoclaw", "workspace", "skills", "clawtools")
 	os.MkdirAll(skillDir, 0755)
 
-	// Copy binaries into workspace/bin so exec safety guard allows them
-	workspaceBin := filepath.Join(home, ".picoclaw", "workspace", "bin")
-	os.MkdirAll(workspaceBin, 0755)
-	for _, t := range tools {
-		src := toolBinaryPath(t)
-		dst := filepath.Join(workspaceBin, t.ID+"-mcp")
-		copyFile(src, dst)
-	}
+	// Use absolute paths to binaries — no copy needed, binaries are built in-place
+	// inside the repo's tools/ subfolder which is inside workspace so exec sandbox allows it
+	gmailBin := toolBinaryPath(ClawTool{ID: "gmail", Dir: "gmail"})
+	gcalBin := toolBinaryPath(ClawTool{ID: "gcal", Dir: "gcal"})
 
-	// Use relative ./bin/ paths — works within exec sandbox
-	gmailBin := "./bin/gmail-mcp"
-	gcalBin := "./bin/gcal-mcp"
+	// Fall back to finding the binaries from the configured tools list
+	for _, t := range tools {
+		switch t.ID {
+		case "gmail":
+			gmailBin = toolBinaryPath(t)
+		case "gcal":
+			gcalBin = toolBinaryPath(t)
+		}
+	}
 
 	skill := fmt.Sprintf(`# ClawTools — Gmail & Google Calendar
 
