@@ -60,6 +60,9 @@ func main() {
 	mux.HandleFunc("/api/picoclaw/version", handlePicoClawVersion)
 	mux.HandleFunc("/api/picoclaw/update", handlePicoClawUpdate)
 
+	// ── Uninstall ─────────────────────────────────────────────────────────────
+	mux.HandleFunc("/api/uninstall", handleUninstall)
+
 	ip := getLocalIP()
 	fmt.Println(" *** claw-setup is running **** ")
 	fmt.Println("--------------------------------")
