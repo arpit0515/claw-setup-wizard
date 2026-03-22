@@ -4,6 +4,7 @@ import (
 	"embed"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"log"
 	"net"
 	"net/http"
@@ -14,6 +15,9 @@ import (
 //go:embed templates/*
 var templateFiles embed.FS
 var tmpl *template.Template
+
+//go:embed static
+var staticFiles embed.FS
 
 func main() {
 	freePort(3000)
@@ -26,8 +30,11 @@ func main() {
 	if err != nil {
 		log.Fatal("Could not load templates:", err)
 	}
+	staticFS, _ := fs.Sub(staticFiles, "static")
 
 	mux := http.NewServeMux()
+
+	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
 
 	// ── Existing routes ───────────────────────────────────────────────────────
 	mux.HandleFunc("/", handleIndex)
