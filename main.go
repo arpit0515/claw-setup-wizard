@@ -56,6 +56,10 @@ func main() {
 	mux.HandleFunc("/api/restart-service", handleRestartService)
 	mux.HandleFunc("/api/local-ip", handleLocalIP)
 
+	mux.HandleFunc("/api/weather/location", handleWeatherLocation)
+	mux.HandleFunc("/api/weather/install", handleWeatherInstall)
+	mux.HandleFunc("/api/weather/forecast", handleWeatherForecast)
+
 	// ── PicoClaw version & update routes ──────────────────────────────────────
 	mux.HandleFunc("/api/picoclaw/version", handlePicoClawVersion)
 	mux.HandleFunc("/api/picoclaw/update", handlePicoClawUpdate)
