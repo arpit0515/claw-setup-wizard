@@ -1079,24 +1079,37 @@ const progress = [10, 30, 50, 70, 88, 100, 100];
 const providerModels = {
   openrouter: {
     hint: 'Get your free key at <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--accent2)">openrouter.ai/keys</a>',
+    // Shown before "Load Models" is clicked — sorted alphabetically by display name.
+    // The auto option lets OpenRouter pick the best available model automatically.
     models: [
-      ['anthropic/claude-sonnet-4-6', 'Claude Sonnet 4.6 (Recommended)'],
-      ['anthropic/claude-haiku-4-5-20251001', 'Claude Haiku 4.5 (Faster/cheaper)'],
-      ['google/gemini-flash-1.5', 'Gemini Flash 1.5'],
-      ['meta-llama/llama-3.1-8b-instruct:free', 'Llama 3.1 8B (Free)'],
+      ['openrouter/auto',                        '⚡ Auto — let OpenRouter choose best model'],
+      ['anthropic/claude-haiku-4-5-20251001',    'Claude Haiku 4.5 (Fast · Recommended for tools)'],
+      ['anthropic/claude-sonnet-4-6',            'Claude Sonnet 4.6 (Best quality)'],
+      ['google/gemini-flash-1.5',                'Gemini Flash 1.5'],
+      ['meta-llama/llama-3.1-8b-instruct:free',  'Llama 3.1 8B (Free)'],
+      ['openai/gpt-4o-mini',                     'OpenAI GPT-4o Mini'],
     ]
   },
   anthropic: {
     hint: 'Get your key at <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent2)">console.anthropic.com</a>',
-    models: [['claude-sonnet-4-6', 'Claude Sonnet 4.6'], ['claude-haiku-4-5-20251001', 'Claude Haiku 4.5']]
+    models: [
+      ['claude-haiku-4-5-20251001', 'Claude Haiku 4.5 (Fast)'],
+      ['claude-sonnet-4-6',         'Claude Sonnet 4.6 (Best quality)'],
+    ]
   },
   gemini: {
     hint: 'Get your free key at <a href="https://aistudio.google.com/api-keys" target="_blank" style="color:var(--accent2)">aistudio.google.com</a>',
-    models: [['gemini-1.5-flash', 'Gemini 1.5 Flash (Free tier)'], ['gemini-1.5-pro', 'Gemini 1.5 Pro']]
+    models: [
+      ['gemini-1.5-flash', 'Gemini 1.5 Flash (Free tier)'],
+      ['gemini-1.5-pro',   'Gemini 1.5 Pro'],
+    ]
   },
   groq: {
     hint: 'Get your free key at <a href="https://console.groq.com" target="_blank" style="color:var(--accent2)">console.groq.com</a>',
-    models: [['llama-3.1-8b-instant', 'Llama 3.1 8B (Fast + Free)'], ['mixtral-8x7b-32768', 'Mixtral 8x7B']]
+    models: [
+      ['llama-3.1-8b-instant', 'Llama 3.1 8B (Fast + Free)'],
+      ['mixtral-8x7b-32768',   'Mixtral 8x7B'],
+    ]
   }
 };
 
@@ -1482,8 +1495,15 @@ async function loadModels() {
 function filterModels() {
   const freeOnly = document.getElementById('free-only').checked;
   const sel = document.getElementById('llm-model');
-  const filtered = freeOnly ? allModels.filter(m => m.free) : allModels;
-  sel.innerHTML = filtered.map(m => `<option value="${m.id}">${m.name}${m.free ? ' 🆓' : ''}</option>`).join('');
+  let filtered = freeOnly ? allModels.filter(m => m.free) : allModels;
+
+  // Sort alphabetically by display name
+  filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+
+  // Always pin Auto at the very top
+  const autoOption = `<option value="openrouter/auto">⚡ Auto — let OpenRouter choose best model</option>`;
+  const rest = filtered.map(m => `<option value="${m.id}">${m.name}${m.free ? ' 🆓' : ''}</option>`).join('');
+  sel.innerHTML = autoOption + rest;
 }
 
 // ── PicoClaw version check ────────────────────────────────────────────────────
@@ -1865,75 +1885,6 @@ document.getElementById('uninstall-confirm-input').addEventListener('input', fun
   btn.disabled = !ok;
   btn.style.opacity = ok ? '0.9' : '0.5';
 });
-
-
-// ── Paste these into index.html just before the closing </script> tag ─────────
-
-// ── pingTelegramFrom ──────────────────────────────────────────────────────────
-// Called by ping tiles on System Check (step 0) and Launch (step 4).
-// alertId  = id of the .alert div to show result in
-// tileId   = id of the .action-tile for loading state
-async function pingTelegramFrom(alertId, tileId) {
-  const tile = document.getElementById(tileId);
-  if (tile) tile.classList.add('loading');
-
-  // Prefer the input field value (step 2), fall back to systemData
-  const chatID = (document.getElementById('tg-userid')?.value?.trim())
-              || (systemData?.telegram_user)
-              || '';
-
-  if (!chatID) {
-    showAlert(alertId, 'error', 'No Telegram user ID saved — complete Step 2 first');
-    if (tile) tile.classList.remove('loading');
-    return;
-  }
-
-  const fd = new FormData();
-  fd.append('chat_id', chatID);
-
-  const r = await fetch('/api/ping-telegram', { method: 'POST', body: fd });
-  const data = await r.json();
-
-  if (tile) tile.classList.remove('loading');
-  showAlert(alertId, data.ok ? 'success' : 'error',
-    data.ok ? '🏓 Ping sent — check your Telegram!' : '✗ ' + data.message);
-}
-
-// ── restartServiceFrom ────────────────────────────────────────────────────────
-// Called by restart tiles on System Check (step 0) and Launch (step 4).
-async function restartServiceFrom(alertId, tileId) {
-  const tile = document.getElementById(tileId);
-  if (tile) tile.classList.add('loading');
-
-  const r = await fetch('/api/restart-service', { method: 'POST' });
-  const data = await r.json();
-
-  if (tile) tile.classList.remove('loading');
-  showAlert(alertId, data.ok ? 'success' : 'error',
-    data.ok ? '✓ Agent restarted' : '✗ ' + (data.message || 'Restart failed'));
-}
-
-// ── revokeAccount ─────────────────────────────────────────────────────────────
-// Called by the Revoke button in the accounts list on Step 5 (Connected Tools).
-async function revokeAccount(email) {
-  if (!confirm(`Remove ${email}?\n\nThe saved token will be deleted. You can reconnect anytime.`)) {
-    return;
-  }
-
-  const fd = new FormData();
-  fd.append('email', email);
-
-  const r = await fetch('/api/oauth/revoke', { method: 'POST', body: fd });
-  const data = await r.json();
-
-  if (data.ok) {
-    loadTools(); // refreshes the whole tools view — accounts list will clear
-  } else {
-    alert('Failed to revoke: ' + data.message);
-  }
-}
-
-
 </script>
 </body>
 </html>
