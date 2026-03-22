@@ -146,16 +146,33 @@ func ensureBinInPath() {
 // Uses cfg.MCPServers (the field PicoClaw actually reads at runtime).
 
 func registerWeatherMCPTool() error {
-	cfg := readConfig()
-	if cfg.MCPServers == nil {
-		cfg.MCPServers = make(map[string]interface{})
+	toolsPath := filepath.Join(os.Getenv("HOME"),
+		".picoclaw", "workspace", ".claw-tools-repo", "tools.json")
+
+	data, err := os.ReadFile(toolsPath)
+	if err != nil {
+		return fmt.Errorf("tools.json not found: %w", err)
 	}
-	cfg.MCPServers["claw-weather"] = map[string]interface{}{
-		"command": weatherBinPath(),
-		"args":    []string{"--mode", "mcp"},
-		"cwd":     weatherBinDir(),
+
+	var tools []map[string]interface{}
+	if err := json.Unmarshal(data, &tools); err != nil {
+		return fmt.Errorf("invalid tools.json: %w", err)
 	}
-	return writeConfig(cfg)
+
+	// Find weather entry and set status to available
+	for i, t := range tools {
+		if t["id"] == "weather" {
+			tools[i]["status"] = "available"
+			tools[i]["service_start"] = weatherBinPath() + " --mode http --port 3104"
+			break
+		}
+	}
+
+	out, err := json.MarshalIndent(tools, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(toolsPath, out, 0644)
 }
 
 // ── Systemd service for weather-mcp ──────────────────────────────────────────
