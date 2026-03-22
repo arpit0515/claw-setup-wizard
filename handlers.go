@@ -1,36 +1,13 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 )
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-type WeatherLocation struct {
-	Lat   float64 `json:"lat"`
-	Lon   float64 `json:"lon"`
-	Label string  `json:"label"`
-}
-
-type GeoResult struct {
-	Name      string  `json:"name"`
-	Latitude  float64 `json:"latitude"`
-	Longitude float64 `json:"longitude"`
-	Country   string  `json:"country"`
-	Admin1    string  `json:"admin1"`
-}
-
-type GeoResponse struct {
-	Results []GeoResult `json:"results"`
-}
 
 func handleValidateLLM(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -198,27 +175,6 @@ func handleInstallService(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, map[string]interface{}{"ok": ok, "message": msg})
 }
 
-func installSystemdService() (bool, string) {
-	picocławPath, err := exec.LookPath("picoclaw")
-	if err != nil {
-		return false, "picoclaw not found in PATH"
-	}
-	home, _ := os.UserHomeDir()
-	serviceDir := filepath.Join(home, ".config", "systemd", "user")
-	os.MkdirAll(serviceDir, 0755)
-	serviceContent := fmt.Sprintf("[Unit]\nDescription=PicoClaw AI Agent\nAfter=network.target\n\n[Service]\nType=simple\nExecStart=%s gateway\nRestart=on-failure\nRestartSec=5\nWorkingDirectory=%s\nEnvironment=HOME=%s\n\n[Install]\nWantedBy=default.target\n", picocławPath, home, home)
-	servicePath := filepath.Join(serviceDir, "picoclaw.service")
-	if err := os.WriteFile(servicePath, []byte(serviceContent), 0644); err != nil {
-		return false, "Failed to write service file: " + err.Error()
-	}
-	for _, cmd := range [][]string{{"systemctl", "--user", "daemon-reload"}, {"systemctl", "--user", "enable", "picoclaw"}, {"systemctl", "--user", "start", "picoclaw"}} {
-		if out, err := exec.Command(cmd[0], cmd[1:]...).CombinedOutput(); err != nil {
-			return false, strings.TrimSpace(string(out))
-		}
-	}
-	return true, "Service installed and started"
-}
-
 func handleRestartService(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
@@ -350,11 +306,6 @@ func handleGetModels(w http.ResponseWriter, r *http.Request) {
 
 // ── Paths ─────────────────────────────────────────────────────────────────────
 
-func weatherConfigPath() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".picoclaw", "config", "weather.json")
-}
-
 func weatherBinaryPath() string {
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".picoclaw", "tools", "weather", "weather-mcp")
@@ -367,54 +318,6 @@ func weatherToolDir() string {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-func loadWeatherLocation() (*WeatherLocation, error) {
-	data, err := os.ReadFile(weatherConfigPath())
-	if err != nil {
-		return nil, err
-	}
-	var loc WeatherLocation
-	if err := json.Unmarshal(data, &loc); err != nil {
-		return nil, err
-	}
-	return &loc, nil
-}
-
-func saveWeatherLocation(loc WeatherLocation) error {
-	path := weatherConfigPath()
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-		return err
-	}
-	data, _ := json.MarshalIndent(loc, "", "  ")
-	return os.WriteFile(path, data, 0600)
-}
-
-func geocodeCity(city string) (*WeatherLocation, error) {
-	apiURL := "https://geocoding-api.open-meteo.com/v1/search?name=" +
-		url.QueryEscape(city) + "&count=1&language=en&format=json"
-	resp, err := http.Get(apiURL)
-	if err != nil {
-		return nil, fmt.Errorf("geocoding request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	var geo GeoResponse
-	if err := json.NewDecoder(resp.Body).Decode(&geo); err != nil {
-		return nil, fmt.Errorf("geocoding parse failed: %w", err)
-	}
-	if len(geo.Results) == 0 {
-		return nil, fmt.Errorf("location not found: %s", city)
-	}
-	r := geo.Results[0]
-	label := r.Name
-	if r.Admin1 != "" {
-		label += ", " + r.Admin1
-	}
-	if r.Country != "" {
-		label += ", " + r.Country
-	}
-	return &WeatherLocation{Lat: r.Latitude, Lon: r.Longitude, Label: label}, nil
-}
-
 func weatherBinaryInstalled() bool {
 	_, err := os.Stat(weatherBinaryPath())
 	return err == nil
@@ -423,237 +326,4 @@ func weatherBinaryInstalled() bool {
 func weatherLocationSet() bool {
 	_, err := loadWeatherLocation()
 	return err == nil
-}
-
-// registerWeatherMCPTool writes the claw-weather entry into ~/.picoclaw/config.json
-// under tools.mcp.servers so PicoClaw's agent picks it up on next restart.
-func registerWeatherMCPTool() error {
-	cfg := readConfig()
-
-	// Ensure tools.mcp.servers map exists
-	if cfg.Tools == nil {
-		cfg.Tools = make(map[string]interface{})
-	}
-	mcp, ok := cfg.Tools["mcp"].(map[string]interface{})
-	if !ok {
-		mcp = make(map[string]interface{})
-		cfg.Tools["mcp"] = mcp
-	}
-	servers, ok := mcp["servers"].(map[string]interface{})
-	if !ok {
-		servers = make(map[string]interface{})
-		mcp["servers"] = servers
-	}
-
-	binPath := weatherBinaryPath()
-	servers["claw-weather"] = map[string]interface{}{
-		"command": binPath,
-		"args":    []string{"--mode", "mcp"},
-		"cwd":     weatherToolDir(),
-	}
-
-	writeConfig(cfg)
-	return nil
-}
-
-// ── Handlers ──────────────────────────────────────────────────────────────────
-
-// POST /api/weather/location
-// Body (form): city=Mississauga  OR  lat=43.5&lon=-79.6&label=Custom
-// GET  /api/weather/location  → returns stored location or 404
-func handleWeatherLocation(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
-		loc, err := loadWeatherLocation()
-		if err != nil {
-			http.Error(w, `{"error":"not set"}`, http.StatusNotFound)
-			return
-		}
-		jsonResponse(w, map[string]interface{}{
-			"ok":    true,
-			"lat":   loc.Lat,
-			"lon":   loc.Lon,
-			"label": loc.Label,
-		})
-		return
-	}
-
-	if r.Method != http.MethodPost {
-		http.Error(w, "POST only", http.StatusMethodNotAllowed)
-		return
-	}
-	r.ParseMultipartForm(1 << 20)
-
-	city := strings.TrimSpace(r.FormValue("city"))
-	latStr := strings.TrimSpace(r.FormValue("lat"))
-	lonStr := strings.TrimSpace(r.FormValue("lon"))
-	label := strings.TrimSpace(r.FormValue("label"))
-
-	var loc *WeatherLocation
-
-	if city != "" {
-		var err error
-		loc, err = geocodeCity(city)
-		if err != nil {
-			errorResponse(w, err.Error())
-			return
-		}
-	} else if latStr != "" && lonStr != "" {
-		var lat, lon float64
-		fmt.Sscanf(latStr, "%f", &lat)
-		fmt.Sscanf(lonStr, "%f", &lon)
-		if label == "" {
-			label = fmt.Sprintf("%.4f, %.4f", lat, lon)
-		}
-		loc = &WeatherLocation{Lat: lat, Lon: lon, Label: label}
-	} else {
-		errorResponse(w, "provide city name or lat+lon")
-		return
-	}
-
-	if err := saveWeatherLocation(*loc); err != nil {
-		errorResponse(w, "Failed to save location: "+err.Error())
-		return
-	}
-
-	jsonResponse(w, map[string]interface{}{
-		"ok":    true,
-		"lat":   loc.Lat,
-		"lon":   loc.Lon,
-		"label": loc.Label,
-	})
-}
-
-// POST /api/weather/install
-// Builds the weather-mcp binary from source (go build) and registers it in agent config.
-func handleWeatherInstall(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "POST only", http.StatusMethodNotAllowed)
-		return
-	}
-
-	toolDir := weatherToolDir()
-	binPath := weatherBinaryPath()
-
-	// ── Step 1: find source ───────────────────────────────────────────────────
-	// Source is expected at one of these locations (local dev or installed repo)
-	home, _ := os.UserHomeDir()
-	candidateSrcDirs := []string{
-		filepath.Join(home, "claw-tools.dev", "tools", "weather"),
-		filepath.Join(home, "clawtools", "tools", "weather"),
-		"/opt/claw-tools/tools/weather",
-	}
-	srcDir := ""
-	for _, d := range candidateSrcDirs {
-		if _, err := os.Stat(filepath.Join(d, "main.go")); err == nil {
-			srcDir = d
-			break
-		}
-	}
-
-	if srcDir == "" {
-		// ── Fallback: download release binary ─────────────────────────────────
-		arch := runtime.GOARCH // "arm64", "amd64", "arm"
-		goos := runtime.GOOS   // "linux", "darwin"
-		assetName := fmt.Sprintf("weather-mcp_%s_%s", goos, arch)
-		downloadURL := fmt.Sprintf(
-			"https://github.com/arpit0515/claw-tools.dev/releases/latest/download/%s",
-			assetName,
-		)
-		os.MkdirAll(toolDir, 0755)
-		out, err := runCommand("wget", "-L", "-q", "-O", binPath, downloadURL)
-		if err != nil {
-			// wget not available — try curl
-			out, err = runCommand("curl", "-L", "-s", "-o", binPath, downloadURL)
-		}
-		if err != nil {
-			errorResponse(w, "Source not found locally and download failed: "+strings.TrimSpace(out))
-			return
-		}
-		os.Chmod(binPath, 0755)
-	} else {
-		// ── Build from source ─────────────────────────────────────────────────
-		os.MkdirAll(toolDir, 0755)
-
-		goPath, err := exec.LookPath("go")
-		if err != nil {
-			errorResponse(w, "go not found in PATH — install Go 1.21+ to build from source")
-			return
-		}
-
-		cmd := exec.Command(goPath, "build", "-o", binPath, ".")
-		cmd.Dir = srcDir
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			errorResponse(w, "Build failed: "+strings.TrimSpace(string(out)))
-			return
-		}
-	}
-
-	// ── Step 2: verify binary runs ────────────────────────────────────────────
-	if _, err := os.Stat(binPath); err != nil {
-		errorResponse(w, "Binary not found after build/download")
-		return
-	}
-
-	// ── Step 3: register in agent config ─────────────────────────────────────
-	if err := registerWeatherMCPTool(); err != nil {
-		errorResponse(w, "Binary built but failed to register in agent config: "+err.Error())
-		return
-	}
-
-	jsonResponse(w, map[string]interface{}{
-		"ok":      true,
-		"message": "weather-mcp installed and registered",
-		"path":    binPath,
-	})
-}
-
-// GET /api/weather/forecast
-// Proxies a request to the local weather-mcp HTTP server (port 3104)
-// or calls Open-Meteo directly using the stored location.
-func handleWeatherForecast(w http.ResponseWriter, r *http.Request) {
-	loc, err := loadWeatherLocation()
-	if err != nil {
-		errorResponse(w, "No location set — set a location first")
-		return
-	}
-
-	// Try local weather-mcp HTTP server first
-	localURL := fmt.Sprintf("http://localhost:3104/weather/forecast?lat=%.4f&lon=%.4f", loc.Lat, loc.Lon)
-	resp, err := http.Get(localURL)
-	if err == nil {
-		defer resp.Body.Close()
-		w.Header().Set("Content-Type", "application/json")
-		var body map[string]interface{}
-		if json.NewDecoder(resp.Body).Decode(&body) == nil {
-			body["ok"] = true
-			json.NewEncoder(w).Encode(body)
-			return
-		}
-	}
-
-	// Fallback: call Open-Meteo directly and return raw forecast JSON
-	forecastURL := fmt.Sprintf(
-		"https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f"+
-			"&hourly=temperature_2m,precipitation_probability,weathercode"+
-			"&current_weather=true&temperature_unit=celsius&forecast_days=1",
-		loc.Lat, loc.Lon,
-	)
-	fResp, err := http.Get(forecastURL)
-	if err != nil {
-		errorResponse(w, "Could not fetch forecast: "+err.Error())
-		return
-	}
-	defer fResp.Body.Close()
-
-	var raw map[string]interface{}
-	if err := json.NewDecoder(fResp.Body).Decode(&raw); err != nil {
-		errorResponse(w, "Could not parse forecast response")
-		return
-	}
-	raw["ok"] = true
-	raw["location"] = loc.Label
-	raw["lat"] = loc.Lat
-	raw["lon"] = loc.Lon
-	jsonResponse(w, raw)
 }
