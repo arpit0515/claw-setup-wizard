@@ -2646,44 +2646,44 @@
 
   async function loadWeatherStatus() {
   try {
-  const r = await fetch('/api/weather/status');
-  const d = await r.json();
-
-  // Binary badge
-  const binBadge = document.getElementById('weather-bin-badge');
-  binBadge.className = d.bin_installed ? 'badge ok' : 'badge warn';
-  binBadge.textContent = d.bin_installed ? '✓ Installed' : '○ Not installed';
-
-  // Service badge
-  const svcBadge = document.getElementById('weather-svc-badge');
-  svcBadge.className = d.svc_running ? 'badge ok' : 'badge warn';
-  svcBadge.textContent = d.svc_running ? '✓ Running' : '○ Not running';
-
-  // Location badge
-  const locBadge = document.getElementById('weather-loc-badge');
-  const locValue = document.getElementById('weather-loc-value');
-  if (d.location_set) {
-  locBadge.className = 'badge ok';
-  locBadge.textContent = '✓ Set';
-  locValue.textContent = d.label || '';
-  if (document.getElementById('weather-city-input').value === '') {
-  document.getElementById('weather-city-input').value = d.label || '';
-  }
-  loadWeatherPreview();
-  } else {
-  locBadge.className = 'badge warn';
-  locBadge.textContent = '○ Not set';
-  }
-
-  // Show install section only if not fully set up
-  const fullyReady = d.bin_installed && d.svc_running;
-  document.getElementById('weather-install-wrap').style.display = fullyReady ? 'none' : 'block';
-  document.getElementById('weather-done-wrap').style.display = fullyReady ? 'block' : 'none';
-
+    const r = await fetch('/api/weather/status');
+    const d = await r.json();
+ 
+    // Binary badge
+    const binBadge = document.getElementById('weather-bin-badge');
+    binBadge.className = d.bin_installed ? 'badge ok' : 'badge warn';
+    binBadge.textContent = d.bin_installed ? '✓ Installed' : '○ Not installed';
+ 
+    // Service badge
+    const svcBadge = document.getElementById('weather-svc-badge');
+    svcBadge.className = d.svc_running ? 'badge ok' : 'badge warn';
+    svcBadge.textContent = d.svc_running ? '✓ Running' : '○ Not running';
+ 
+    // Location badge
+    const locBadge = document.getElementById('weather-loc-badge');
+    const locValue = document.getElementById('weather-loc-value');
+    if (d.location_set) {
+      locBadge.className = 'badge ok';
+      locBadge.textContent = '✓ Set';
+      locValue.textContent = d.label || '';
+      if (document.getElementById('weather-city-input').value === '') {
+        document.getElementById('weather-city-input').value = d.label || '';
+      }
+      loadWeatherPreview();
+    } else {
+      locBadge.className = 'badge warn';
+      locBadge.textContent = '○ Not set';
+    }
+ 
+    // Fully ready = binary installed + service running + scripts written + skill written
+    const fullyReady = d.bin_installed && d.svc_running && d.scripts_written && d.skill_written;
+    document.getElementById('weather-install-wrap').style.display = fullyReady ? 'none' : 'block';
+    document.getElementById('weather-done-wrap').style.display    = fullyReady ? 'block' : 'none';
+ 
   } catch(e) {
-  // API not yet registered — silently skip
+    // API not reachable — silently skip
   }
-  }
+}
 
   async function setWeatherLocation() {
   const city = document.getElementById('weather-city-input').value.trim();
@@ -2716,7 +2716,8 @@
 
   async function installWeatherTool() {
   const btn = document.getElementById('btn-install-weather');
-  btn.innerHTML = '<div class="spinner" style="display:inline-block;width:12px;height:12px;border-width:2px;margin-right:6px"></div> Installing...';
+  btn.innerHTML = '<div class="spinner"
+    style="display:inline-block;width:12px;height:12px;border-width:2px;margin-right:6px"></div> Installing...';
   btn.disabled = true;
   hideAlert('weather-alert');
 
