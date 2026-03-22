@@ -157,6 +157,13 @@ func handleSaveSoul(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, "Failed to write SOUL.md: "+err.Error())
 		return
 	}
+
+	// Generate IDENTITY.md, USER.md, HEARTBEAT.md now that we know the owner.
+	// AGENTS.md and TOOLS.md will be written (with tool details) after OAuth connects.
+	// writeIfAbsent ensures user edits are never overwritten on re-runs.
+	agentName, ownerName := resolveAgentIdentity()
+	go writeWorkspaceFiles(nil, agentName, ownerName)
+
 	okResponse(w, "SOUL.md saved to "+soulPath, nil)
 }
 

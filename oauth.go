@@ -68,17 +68,24 @@ func tokenFileForEmail(email string) string {
 	return filepath.Join(tokensDir(), safe+".enc")
 }
 
-// toolsRepoDir returns ~/.picoclaw/workspace/tools — inside the workspace so
-// PicoClaw's exec safety guard can reach the binaries.
-func toolsRepoDir() string {
+// clawToolsRepoDir is where the claw-tools.dev git repo is cloned.
+// Kept separate from the tools themselves so the .git folder stays out of the way.
+func clawToolsRepoDir() string {
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".picoclaw", "workspace", "tools")
+	return filepath.Join(home, ".picoclaw", "workspace", ".claw-tools-repo")
+}
+
+// toolsRepoDir returns the tools/ subfolder inside the cloned repo.
+// Binaries are built here — e.g. workspace/.claw-tools-repo/tools/gmail/gmail-mcp
+// t.Dir in tools.json should be just "gmail", "gcal" etc — no "tools/" prefix needed.
+func toolsRepoDir() string {
+	return filepath.Join(clawToolsRepoDir(), "tools")
 }
 
 // toolBinaryPath returns the path to the compiled binary for a tool.
 // e.g. ~/claw-tools.dev/tools/gmail/gmail-mcp
 func toolBinaryPath(t ClawTool) string {
-	return filepath.Join(toolsRepoDir(), t.Dir, t.ID+"-mcp")
+	return filepath.Join(clawToolsRepoDir(), t.Dir, t.ID+"-mcp")
 }
 
 // ── Encryption ────────────────────────────────────────────────────────────────
@@ -504,84 +511,94 @@ func handleCredsStatus(w http.ResponseWriter, r *http.Request) {
 
 // ── Tool installation ─────────────────────────────────────────────────────────
 
-
 // copyFile copies src to dst, making dst executable.
 func copyFile(src, dst string) error {
 	in, err := os.Open(src)
 	if err != nil {
-		return err
+		return fmt.Errorf("open src %s: %w", src, err)
 	}
 	defer in.Close()
 	os.Remove(dst)
 	out, err := os.Create(dst)
 	if err != nil {
-		return err
+		return fmt.Errorf("create dst %s: %w", dst, err)
 	}
 	defer out.Close()
 	if _, err := io.Copy(out, in); err != nil {
-		return err
+		return fmt.Errorf("copy: %w", err)
 	}
-	return os.Chmod(dst, 0755)
+	if err := os.Chmod(dst, 0755); err != nil {
+		return fmt.Errorf("chmod: %w", err)
+	}
+	// Verify the file actually landed
+	if info, err := os.Stat(dst); err != nil || info.Size() == 0 {
+		return fmt.Errorf("post-copy verify failed for %s", dst)
+	}
+	return nil
 }
 
 // ensureToolsRepo clones claw-tools.dev if not present, or pulls latest if it is.
 func ensureToolsRepo() error {
-	repoDir := toolsRepoDir()
+	repoDir := clawToolsRepoDir()
 
-	if _, err := os.Stat(filepath.Join(repoDir, ".git")); err == nil {
-		fmt.Fprintf(os.Stderr, "tools-repo: pulling latest...\n")
-		cmd := exec.Command("git", "-C", repoDir, "pull", "--ff-only")
-		if out, err := cmd.CombinedOutput(); err != nil {
-			// Non-fatal — continue with whatever version we have
-			fmt.Fprintf(os.Stderr, "tools-repo: pull warning: %s\n", strings.TrimSpace(string(out)))
+	// Always wipe and re-clone — guarantees fresh code on every run
+	if _, err := os.Stat(repoDir); err == nil {
+		fmt.Fprintf(os.Stderr, "tools-repo: removing stale clone at %s\n", repoDir)
+		if err := os.RemoveAll(repoDir); err != nil {
+			return fmt.Errorf("could not remove old repo: %w", err)
 		}
-		return nil
 	}
 
-	fmt.Fprintf(os.Stderr, "tools-repo: cloning %s to %s...\n", toolsRepoCloneURL, repoDir)
+	os.MkdirAll(filepath.Dir(repoDir), 0755)
+	fmt.Fprintf(os.Stderr, "tools-repo: cloning %s...\n", toolsRepoCloneURL)
 	cmd := exec.Command("git", "clone", "--depth=1", toolsRepoCloneURL, repoDir)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("git clone failed: %s", strings.TrimSpace(string(out)))
 	}
-	fmt.Fprintf(os.Stderr, "tools-repo: cloned to %s\n", repoDir)
+	fmt.Fprintf(os.Stderr, "tools-repo: cloned OK\n")
 	return nil
 }
 
 // buildTool compiles the tool binary. Skips if binary is already newer than source.
 func buildTool(t ClawTool, goBin string) error {
-	toolDir := filepath.Join(toolsRepoDir(), t.Dir)
+	// t.Dir is "tools/gmail" — build inside the repo clone
+	toolDir := filepath.Join(clawToolsRepoDir(), t.Dir)
 	binaryPath := toolBinaryPath(t)
 
-	// Skip rebuild if binary is newer than all .go source files
-	if binInfo, err := os.Stat(binaryPath); err == nil {
-		entries, _ := filepath.Glob(filepath.Join(toolDir, "*.go"))
-		needRebuild := false
-		for _, src := range entries {
-			if srcInfo, err := os.Stat(src); err == nil && srcInfo.ModTime().After(binInfo.ModTime()) {
-				needRebuild = true
-				break
-			}
-		}
-		if !needRebuild {
-			fmt.Fprintf(os.Stderr, "build: %s-%s already up to date\n", t.ID, "mcp")
-			return nil
-		}
+	// Verify the source directory exists after the clone
+	if _, err := os.Stat(toolDir); err != nil {
+		return fmt.Errorf("tool directory not found after clone: %s", toolDir)
 	}
 
-	fmt.Fprintf(os.Stderr, "build: compiling %s-mcp...\n", t.ID)
-	cmd := exec.Command(goBin, "build", "-o", binaryPath, ".")
-	cmd.Dir = toolDir
-	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("go build failed for %s: %s", t.ID, strings.TrimSpace(string(out)))
+	// Verify main.go exists — catch misconfigured t.Dir early
+	if _, err := os.Stat(filepath.Join(toolDir, "main.go")); err != nil {
+		return fmt.Errorf("no main.go in %s — check tools.json dir field", toolDir)
 	}
+
+	fmt.Fprintf(os.Stderr, "build: downloading deps for %s...\n", t.ID)
+	dlCmd := exec.Command(goBin, "mod", "download")
+	dlCmd.Dir = toolDir
+	dlCmd.Env = append(os.Environ(), "CGO_ENABLED=0", "GOFLAGS=-mod=mod")
+	if out, err := dlCmd.CombinedOutput(); err != nil {
+		// Non-fatal — log and continue, build will catch real issues
+		fmt.Fprintf(os.Stderr, "build: mod download warning for %s: %s\n", t.ID, strings.TrimSpace(string(out)))
+	}
+
+	fmt.Fprintf(os.Stderr, "build: compiling %s-mcp from %s...\n", t.ID, toolDir)
+	buildCmd := exec.Command(goBin, "build", "-o", binaryPath, ".")
+	buildCmd.Dir = toolDir
+	buildCmd.Env = append(os.Environ(), "CGO_ENABLED=0", "GOFLAGS=-mod=mod")
+	if out, err := buildCmd.CombinedOutput(); err != nil {
+		// Include full output — this is why the old code showed empty errors
+		return fmt.Errorf("go build failed for %s:\n%s", t.ID, strings.TrimSpace(string(out)))
+	}
+
 	os.Chmod(binaryPath, 0755)
-	fmt.Fprintf(os.Stderr, "build: %s-mcp ready at %s\n", t.ID, binaryPath)
+	fmt.Fprintf(os.Stderr, "build: %s-mcp compiled → %s\n", t.ID, binaryPath)
 	return nil
 }
 
 // ── Auto-configure ────────────────────────────────────────────────────────────
-
 
 // writeGoogleCredentials writes google_credentials.json so ClawTools can
 // initialize their own OAuth client to refresh tokens independently.
@@ -616,19 +633,20 @@ func writeGoogleCredentials() error {
 	return nil
 }
 
-// autoConfigureFromRegistry is the single source of truth for wiring ClawTools
-// into PicoClaw. Flow:
-//  1. Fetch tools.json from GitHub
-//  2. Clone / pull claw-tools.dev repo
-//  3. Build each available tool binary (skip if already current)
-//  4. Write config.json pointing to compiled binaries (not go run)
-//  5. Write SKILL.md
-//  6. Install / restart systemd services
-//  7. Restart PicoClaw
+// ── autoConfigureFromRegistry ─────────────────────────────────────────────────
+// Single source of truth for wiring ClawTools into PicoClaw.
+//
+// Binary lifecycle:
+//  1. Clone repo  → ~/.picoclaw/workspace/.claw-tools-repo/   (build cache only)
+//  2. Build       → binary lands in repo clone dir            (temporary)
+//  3. Copy        → ~/.picoclaw/workspace/bin/id-mcp          (canonical location)
+//  4. Service     → points at workspace/bin/id-mcp            (never the repo)
+//  5. MCP config  → http://localhost:PORT/mcp                 (never a file path)
+//
+// After step 3, the repo clone is never referenced again.
 func autoConfigureFromRegistry() {
 	fmt.Fprintf(os.Stderr, "auto-configure: starting...\n")
 
-	// Always ensure credentials file exists — needed by ClawTools to refresh tokens
 	if err := writeGoogleCredentials(); err != nil {
 		fmt.Fprintf(os.Stderr, "auto-configure: warning — could not write credentials: %v\n", err)
 	}
@@ -642,13 +660,11 @@ func autoConfigureFromRegistry() {
 	accounts, _ := listConnectedAccounts()
 	home, _ := os.UserHomeDir()
 
-	// Step 1 — Ensure repo is present and up to date
 	if err := ensureToolsRepo(); err != nil {
 		fmt.Fprintf(os.Stderr, "auto-configure: repo setup failed: %v\n", err)
 		return
 	}
 
-	// Find Go binary
 	goBin := "/usr/local/go/bin/go"
 	if _, err := os.Stat(goBin); err != nil {
 		if path, err := exec.LookPath("go"); err == nil {
@@ -663,10 +679,24 @@ func autoConfigureFromRegistry() {
 	if cfg.Tools == nil {
 		cfg.Tools = make(map[string]interface{})
 	}
+	if cfg.Agents == nil {
+		cfg.Agents = make(map[string]interface{})
+	}
+	defaults, _ := cfg.Agents["defaults"].(map[string]interface{})
+	if defaults == nil {
+		defaults = make(map[string]interface{})
+	}
+	defaults["workspace"] = filepath.Join(home, ".picoclaw", "workspace")
+	cfg.Agents["defaults"] = defaults
+
+	// workspace/bin is the ONE place binaries live after build.
+	// Created once here — every subsequent reference uses this path.
+	workspaceBin := filepath.Join(home, ".picoclaw", "workspace", "bin")
+	os.MkdirAll(workspaceBin, 0755)
 
 	mcpServers := map[string]interface{}{}
 	configuredTools := []ClawTool{}
-	newlyInstalled := []ClawTool{} // only ping for tools installed this run
+	newlyInstalled := []ClawTool{}
 
 	for _, t := range tools {
 		if t.Status != "available" {
@@ -676,37 +706,45 @@ func autoConfigureFromRegistry() {
 			continue
 		}
 
-		binaryPath := toolBinaryPath(t)
-		alreadyBuilt := func() bool {
-			_, err := os.Stat(binaryPath)
-			return err == nil
-		}()
-
-		// Build binary — skip if already current
+		// ── Step 1: Build binary in repo clone (temporary location) ──────────
 		if err := buildTool(t, goBin); err != nil {
 			fmt.Fprintf(os.Stderr, "auto-configure: build failed for %s: %v — skipping\n", t.ID, err)
 			continue
 		}
 
-		toolDir := filepath.Join(toolsRepoDir(), t.Dir)
+		// ── Step 2: Copy binary to workspace/bin (canonical location) ────────
+		// From this point on, nothing references the repo clone.
+		repobinary := toolBinaryPath(t) // repo clone path — used only for copy src
+		finalBinary := filepath.Join(workspaceBin, t.ID+"-mcp")
 
-		// Point MCP config to compiled binary, not go run
+		alreadyInstalled := func() bool {
+			_, err := os.Stat(finalBinary)
+			return err == nil
+		}()
+
+		if err := copyFile(repobinary, finalBinary); err != nil {
+			fmt.Fprintf(os.Stderr, "auto-configure: could not copy %s to workspace/bin: %v\n", t.ID, err)
+			continue
+		}
+		fmt.Fprintf(os.Stderr, "auto-configure: %s-mcp → %s\n", t.ID, finalBinary)
+
+		// ── Step 3: Register MCP URL in config ────────────────────────────────
+		// URL only — no file paths in the MCP config.
 		mcpServers["claw-"+t.ID] = map[string]interface{}{
-			"command": binaryPath,
-			"args":    []string{"--mode", "mcp"},
-			"cwd":     toolDir,
+			"url": fmt.Sprintf("http://localhost:%d/mcp", t.HTTPPort),
 		}
 
-		installToolService(t.ID, t.HTTPPort, binaryPath, toolDir, home)
+		// ── Step 4: Install systemd service pointing at workspace/bin ────────
+		// Pass finalBinary (workspace/bin path) and home only.
+		// toolDir is intentionally NOT passed — the service never needs it.
+		installToolService(t.ID, t.HTTPPort, finalBinary, home)
 		configuredTools = append(configuredTools, t)
 
-		// Only ping on first install, not every re-run
-		if !alreadyBuilt {
+		if !alreadyInstalled {
 			newlyInstalled = append(newlyInstalled, t)
 		}
 	}
 
-	// Write at root level as mcpServers — this is the key PicoClaw actually reads
 	cfg.MCPServers = mcpServers
 
 	if err := writeConfig(cfg); err != nil {
@@ -717,35 +755,15 @@ func autoConfigureFromRegistry() {
 
 	autoWriteSkillFile(configuredTools, home)
 
-	// Install the MCP integration skill so PicoClaw can actually call MCP servers
-	ensureMCPSkill()
+	agentName, ownerName := resolveAgentIdentity()
+	writeWorkspaceFiles(configuredTools, agentName, ownerName)
 
 	runCommand("systemctl", "--user", "restart", "picoclaw")
 	fmt.Fprintf(os.Stderr, "auto-configure: picoclaw restarted\n")
 
-	// Only ping for tools that were just built for the first time
 	for _, t := range newlyInstalled {
 		sendToolConnectedPing(t)
 	}
-}
-
-
-// ensureMCPSkill installs the openclaw-mcp-plugin skill if not already present.
-// This skill is what enables PicoClaw to actually call MCP server tools.
-func ensureMCPSkill() {
-	home, _ := os.UserHomeDir()
-	skillDir := filepath.Join(home, ".picoclaw", "workspace", "skills", "openclaw-mcp-plugin")
-	if _, err := os.Stat(skillDir); err == nil {
-		fmt.Fprintf(os.Stderr, "mcp-skill: openclaw-mcp-plugin already installed\n")
-		return
-	}
-	fmt.Fprintf(os.Stderr, "mcp-skill: installing openclaw-mcp-plugin...\n")
-	out, err := runCommand("picoclaw", "skills", "install", "--registry", "clawhub", "openclaw-mcp-plugin")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "mcp-skill: install failed: %s\n", out)
-		return
-	}
-	fmt.Fprintf(os.Stderr, "mcp-skill: openclaw-mcp-plugin installed\n")
 }
 
 // ── Skill file ────────────────────────────────────────────────────────────────
@@ -754,18 +772,27 @@ func autoWriteSkillFile(tools []ClawTool, home string) {
 	skillDir := filepath.Join(home, ".picoclaw", "workspace", "skills", "clawtools")
 	os.MkdirAll(skillDir, 0755)
 
-	// Copy binaries into workspace/bin so exec safety guard allows them
+	// Copy binaries into workspace/bin — PicoClaw's exec sandbox only allows
+	// execution of files inside the workspace directory. Binaries are built inside
+	// .claw-tools-repo which is inside workspace, but the sandbox uses path prefix
+	// matching so hidden dirs (.claw-tools-repo) may be blocked. workspace/bin is
+	// the guaranteed-safe location. Copy on every run so it stays in sync.
 	workspaceBin := filepath.Join(home, ".picoclaw", "workspace", "bin")
 	os.MkdirAll(workspaceBin, 0755)
 	for _, t := range tools {
 		src := toolBinaryPath(t)
 		dst := filepath.Join(workspaceBin, t.ID+"-mcp")
-		copyFile(src, dst)
+		if err := copyFile(src, dst); err != nil {
+			fmt.Fprintf(os.Stderr, "skill: could not copy %s binary to workspace/bin: %v (src=%s)\n", t.ID, err, src)
+			continue
+		}
+		fmt.Fprintf(os.Stderr, "skill: copied %s-mcp → workspace/bin/\n", t.ID)
 	}
 
-	// Use relative ./bin/ paths — works within exec sandbox
-	gmailBin := "./bin/gmail-mcp"
-	gcalBin := "./bin/gcal-mcp"
+	// Use absolute paths — PicoClaw's WorkingDirectory is $HOME, not the workspace,
+	// so relative ./bin/ paths resolve to ~/bin/ which doesn't exist.
+	gmailBin := filepath.Join(home, ".picoclaw", "workspace", "bin", "gmail-mcp")
+	gcalBin := filepath.Join(home, ".picoclaw", "workspace", "bin", "gcal-mcp")
 
 	skill := fmt.Sprintf(`# ClawTools — Gmail & Google Calendar
 
@@ -779,34 +806,34 @@ Use the exec tool with these exact commands:
 ### Gmail
 
 List recent emails:
-` + "```" + `
+`+"```"+`
 exec: %s -mode mcp <<'EOF'
 {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"gmail_list","arguments":{"max_results":5}}}
 EOF
-` + "```" + `
+`+"```"+`
 
 Search emails:
-` + "```" + `
+`+"```"+`
 exec: %s -mode mcp <<'EOF'
 {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"gmail_search","arguments":{"query":"is:unread","max_results":5}}}
 EOF
-` + "```" + `
+`+"```"+`
 
 ### Google Calendar
 
 Today's events:
-` + "```" + `
+`+"```"+`
 exec: %s -mode mcp <<'EOF'
 {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"gcal_today","arguments":{}}}
 EOF
-` + "```" + `
+`+"```"+`
 
 Upcoming events (next 7 days):
-` + "```" + `
+`+"```"+`
 exec: %s -mode mcp <<'EOF'
 {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"gcal_upcoming","arguments":{"days":7}}}
 EOF
-` + "```" + `
+`+"```"+`
 
 ## Rules
 - ALWAYS use exec with the commands above when asked about emails or calendar
@@ -826,16 +853,31 @@ EOF
 
 // ── Systemd service ───────────────────────────────────────────────────────────
 
-// installToolService writes a systemd user service that runs the compiled binary
-// in HTTP mode. Uses the binary directly — no go run.
-func installToolService(id string, port int, binaryPath string, toolDir string, home string) {
+// ── installToolService ────────────────────────────────────────────────────────
+// Writes a systemd user service for a ClawTool binary.
+//
+// ONE canonical binary location: ~/.picoclaw/workspace/bin/
+// The repo clone (~/.picoclaw/workspace/.claw-tools-repo/) is build-only.
+// Nothing in the service file ever references the repo clone path.
+//
+// Parameters:
+//
+//	id         — tool ID e.g. "gmail", "gcal"
+//	port       — HTTP port the tool listens on e.g. 3101
+//	binaryPath — full path to binary in workspace/bin e.g. ~/.picoclaw/workspace/bin/gmail-mcp
+//	home       — user home directory e.g. /home/novamera
+func installToolService(id string, port int, binaryPath string, home string) {
 	serviceDir := filepath.Join(home, ".config", "systemd", "user")
 	os.MkdirAll(serviceDir, 0755)
 
+	// workspaceBin is the WorkingDirectory — same folder the binary lives in.
+	// The tool binary needs this as its working dir so relative paths resolve correctly.
+	workspaceBin := filepath.Join(home, ".picoclaw", "workspace", "bin")
+
 	content := fmt.Sprintf(`[Unit]
 Description=ClawTools %s
-After=network.target picoclaw.service
-
+After=network.target
+ 
 [Service]
 Type=simple
 ExecStart=%s --mode http --port %d
@@ -843,10 +885,10 @@ WorkingDirectory=%s
 Restart=on-failure
 RestartSec=5
 Environment=HOME=%s
-
+ 
 [Install]
 WantedBy=default.target
-`, id, binaryPath, port, toolDir, home)
+`, id, binaryPath, port, workspaceBin, home)
 
 	serviceName := "claw-" + id
 	path := filepath.Join(serviceDir, serviceName+".service")
@@ -859,7 +901,7 @@ WantedBy=default.target
 	runCommand("systemctl", "--user", "daemon-reload")
 	runCommand("systemctl", "--user", "enable", serviceName)
 	runCommand("systemctl", "--user", "restart", serviceName)
-	fmt.Fprintf(os.Stderr, "auto-configure: service %s installed\n", serviceName)
+	fmt.Fprintf(os.Stderr, "auto-configure: service %s installed → %s on port %d\n", serviceName, binaryPath, port)
 }
 
 // ── Telegram ping ─────────────────────────────────────────────────────────────
