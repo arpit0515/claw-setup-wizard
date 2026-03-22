@@ -85,7 +85,7 @@ func toolsRepoDir() string {
 // toolBinaryPath returns the path to the compiled binary for a tool.
 // e.g. ~/claw-tools.dev/tools/gmail/gmail-mcp
 func toolBinaryPath(t ClawTool) string {
-	return filepath.Join(toolsRepoDir(), t.Dir, t.ID+"-mcp")
+	return filepath.Join(clawToolsRepoDir(), t.Dir, t.ID+"-mcp")
 }
 
 // ── Encryption ────────────────────────────────────────────────────────────────
@@ -541,55 +541,60 @@ func copyFile(src, dst string) error {
 func ensureToolsRepo() error {
 	repoDir := clawToolsRepoDir()
 
-	if _, err := os.Stat(filepath.Join(repoDir, ".git")); err == nil {
-		fmt.Fprintf(os.Stderr, "tools-repo: pulling latest...\n")
-		cmd := exec.Command("git", "-C", repoDir, "pull", "--ff-only")
-		if out, err := cmd.CombinedOutput(); err != nil {
-			fmt.Fprintf(os.Stderr, "tools-repo: pull warning: %s\n", strings.TrimSpace(string(out)))
+	// Always wipe and re-clone — guarantees fresh code on every run
+	if _, err := os.Stat(repoDir); err == nil {
+		fmt.Fprintf(os.Stderr, "tools-repo: removing stale clone at %s\n", repoDir)
+		if err := os.RemoveAll(repoDir); err != nil {
+			return fmt.Errorf("could not remove old repo: %w", err)
 		}
-		return nil
 	}
 
 	os.MkdirAll(filepath.Dir(repoDir), 0755)
-	fmt.Fprintf(os.Stderr, "tools-repo: cloning %s to %s...\n", toolsRepoCloneURL, repoDir)
+	fmt.Fprintf(os.Stderr, "tools-repo: cloning %s...\n", toolsRepoCloneURL)
 	cmd := exec.Command("git", "clone", "--depth=1", toolsRepoCloneURL, repoDir)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("git clone failed: %s", strings.TrimSpace(string(out)))
 	}
-	fmt.Fprintf(os.Stderr, "tools-repo: cloned to %s\n", repoDir)
+	fmt.Fprintf(os.Stderr, "tools-repo: cloned OK\n")
 	return nil
 }
 
 // buildTool compiles the tool binary. Skips if binary is already newer than source.
 func buildTool(t ClawTool, goBin string) error {
-	toolDir := filepath.Join(toolsRepoDir(), t.Dir)
+	// t.Dir is "tools/gmail" — build inside the repo clone
+	toolDir := filepath.Join(clawToolsRepoDir(), t.Dir)
 	binaryPath := toolBinaryPath(t)
 
-	// Skip rebuild if binary is newer than all .go source files
-	if binInfo, err := os.Stat(binaryPath); err == nil {
-		entries, _ := filepath.Glob(filepath.Join(toolDir, "*.go"))
-		needRebuild := false
-		for _, src := range entries {
-			if srcInfo, err := os.Stat(src); err == nil && srcInfo.ModTime().After(binInfo.ModTime()) {
-				needRebuild = true
-				break
-			}
-		}
-		if !needRebuild {
-			fmt.Fprintf(os.Stderr, "build: %s-%s already up to date\n", t.ID, "mcp")
-			return nil
-		}
+	// Verify the source directory exists after the clone
+	if _, err := os.Stat(toolDir); err != nil {
+		return fmt.Errorf("tool directory not found after clone: %s", toolDir)
 	}
 
-	fmt.Fprintf(os.Stderr, "build: compiling %s-mcp...\n", t.ID)
-	cmd := exec.Command(goBin, "build", "-o", binaryPath, ".")
-	cmd.Dir = toolDir
-	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("go build failed for %s: %s", t.ID, strings.TrimSpace(string(out)))
+	// Verify main.go exists — catch misconfigured t.Dir early
+	if _, err := os.Stat(filepath.Join(toolDir, "main.go")); err != nil {
+		return fmt.Errorf("no main.go in %s — check tools.json dir field", toolDir)
 	}
+
+	fmt.Fprintf(os.Stderr, "build: downloading deps for %s...\n", t.ID)
+	dlCmd := exec.Command(goBin, "mod", "download")
+	dlCmd.Dir = toolDir
+	dlCmd.Env = append(os.Environ(), "CGO_ENABLED=0", "GOFLAGS=-mod=mod")
+	if out, err := dlCmd.CombinedOutput(); err != nil {
+		// Non-fatal — log and continue, build will catch real issues
+		fmt.Fprintf(os.Stderr, "build: mod download warning for %s: %s\n", t.ID, strings.TrimSpace(string(out)))
+	}
+
+	fmt.Fprintf(os.Stderr, "build: compiling %s-mcp from %s...\n", t.ID, toolDir)
+	buildCmd := exec.Command(goBin, "build", "-o", binaryPath, ".")
+	buildCmd.Dir = toolDir
+	buildCmd.Env = append(os.Environ(), "CGO_ENABLED=0", "GOFLAGS=-mod=mod")
+	if out, err := buildCmd.CombinedOutput(); err != nil {
+		// Include full output — this is why the old code showed empty errors
+		return fmt.Errorf("go build failed for %s:\n%s", t.ID, strings.TrimSpace(string(out)))
+	}
+
 	os.Chmod(binaryPath, 0755)
-	fmt.Fprintf(os.Stderr, "build: %s-mcp ready at %s\n", t.ID, binaryPath)
+	fmt.Fprintf(os.Stderr, "build: %s-mcp compiled → %s\n", t.ID, binaryPath)
 	return nil
 }
 
