@@ -537,6 +537,57 @@ func copyFile(src, dst string) error {
 	return nil
 }
 
+// installGoOnRaspberryPi downloads and installs Go for the current ARM machine.
+// It detects the actual CPU architecture via uname -m (same pattern as handleInstallPicoclaw).
+// Returns the path to the go binary on success.
+func installGoOnRaspberryPi() (string, error) {
+	const goVersion = "1.22.4"
+	const installDir = "/usr/local"
+	goBin := filepath.Join(installDir, "go", "bin", "go")
+
+	// Detect machine architecture the same way handleInstallPicoclaw does.
+	unameOut, err := runCommand("uname", "-m")
+	if err != nil {
+		return "", fmt.Errorf("could not detect architecture: %w", err)
+	}
+	var goArch string
+	switch strings.TrimSpace(unameOut) {
+	case "aarch64":
+		goArch = "arm64"
+	case "armv7l", "armv6l":
+		goArch = "armv6l"
+	default:
+		return "", fmt.Errorf("unsupported architecture for Go auto-install: %s", strings.TrimSpace(unameOut))
+	}
+
+	tarball := fmt.Sprintf("go%s.linux-%s.tar.gz", goVersion, goArch)
+	downloadURL := "https://golang.org/dl/" + tarball
+	tmpFile := "/tmp/" + tarball
+
+	fmt.Fprintf(os.Stderr, "auto-configure: downloading Go %s for linux/%s...\n", goVersion, goArch)
+	if _, err := runCommand("wget", "-L", "-q", "-O", tmpFile, downloadURL); err != nil {
+		return "", fmt.Errorf("download failed: %w", err)
+	}
+
+	// Remove any existing Go installation before extracting.
+	if err := os.RemoveAll(filepath.Join(installDir, "go")); err != nil {
+		return "", fmt.Errorf("failed to remove old Go installation: %w", err)
+	}
+
+	fmt.Fprintf(os.Stderr, "auto-configure: extracting Go to %s...\n", installDir)
+	if _, err := runCommand("tar", "-C", installDir, "-xzf", tmpFile); err != nil {
+		return "", fmt.Errorf("extraction failed: %w", err)
+	}
+	os.Remove(tmpFile)
+
+	if _, err := os.Stat(goBin); err != nil {
+		return "", fmt.Errorf("go binary not found after installation at %s", goBin)
+	}
+
+	fmt.Fprintf(os.Stderr, "auto-configure: Go installed successfully at %s\n", goBin)
+	return goBin, nil
+}
+
 // ensureToolsRepo clones claw-tools.dev if not present, or pulls latest if it is.
 func ensureToolsRepo() error {
 	repoDir := clawToolsRepoDir()
@@ -670,8 +721,13 @@ func autoConfigureFromRegistry() {
 		if path, err := exec.LookPath("go"); err == nil {
 			goBin = path
 		} else {
-			fmt.Fprintf(os.Stderr, "auto-configure: go binary not found\n")
-			return
+			fmt.Fprintf(os.Stderr, "auto-configure: go binary not found, attempting to install Go on Raspberry Pi...\n")
+			if installedBin, err := installGoOnRaspberryPi(); err != nil {
+				fmt.Fprintf(os.Stderr, "auto-configure: failed to install Go: %v\n", err)
+				return
+			} else {
+				goBin = installedBin
+			}
 		}
 	}
 
@@ -813,32 +869,22 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"gcal_today
 	// exec: ./bin/script.sh              → blocked (relative path)
 	// exec: echo ... | ./bin/binary      → blocked (pipe)
 	skill := fmt.Sprintf(`# ClawTools — Gmail & Google Calendar
-
-You have direct access to the user's Gmail and Google Calendar via local scripts.
-
-## IMPORTANT — Tool Routing Rules
-- For ANY request about emails, inbox, messages, invoices, receipts, or correspondence → ALWAYS use the exec command below. NEVER use web_search.
-- For ANY request about calendar, schedule, meetings, or events → ALWAYS use the exec command below. NEVER use web_search.
-- web_search is ONLY for public internet information. It cannot access private email or calendar data.
-- NEVER search site:gmail.com or site:calendar.google.com — this does not work and exposes private data.
-
+ 
+You have direct access to Gmail and Google Calendar via local scripts.
+Use the exec tool with the EXACT commands below. Do not modify them.
+ 
 ## Get emails
 exec: %s
-
+ 
 ## Get today's calendar
 exec: %s
-
-## Searching emails
-To search for specific emails (e.g. invoices, receipts), run get_emails and filter the results yourself.
-Do NOT use web_search to find emails.
-
+ 
 ## Rules
 - Use ONLY these exact exec commands for email and calendar
 - Do NOT use curl, do NOT use relative paths, do NOT use pipes in exec
 - The scripts return JSON — extract result.content[0].text and present as readable text
 - If the array is empty, say "No emails found" or "Nothing on the calendar today"
 - NEVER say you cannot access email or calendar
-- NEVER use web_search as a fallback for email or calendar queries
 `, getEmailsScript, getCalendarScript)
 
 	path := filepath.Join(skillDir, "SKILL.md")
