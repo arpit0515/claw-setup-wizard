@@ -7,13 +7,11 @@ import (
 	"strings"
 )
 
-// workspacePath returns ~/.picoclaw/workspace/<file>
 func workspacePath(file string) string {
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".picoclaw", "workspace", file)
 }
 
-// ensureWorkspaceDirs creates all required workspace directories.
 func ensureWorkspaceDirs() {
 	home, _ := os.UserHomeDir()
 	dirs := []string{
@@ -29,8 +27,6 @@ func ensureWorkspaceDirs() {
 	}
 }
 
-// resolveAgentIdentity extracts agent name and owner name from existing SOUL.md.
-// Falls back to safe defaults if SOUL.md is absent or not yet written.
 func resolveAgentIdentity() (agentName, ownerName string) {
 	agentName = "Claw"
 	ownerName = "the owner"
@@ -43,14 +39,12 @@ func resolveAgentIdentity() (agentName, ownerName string) {
 
 	for _, line := range strings.Split(content, "\n") {
 		line = strings.TrimSpace(line)
-		// Parse "# SOUL.md — AgentName" from the first heading
 		if strings.HasPrefix(line, "# SOUL.md") {
 			parts := strings.SplitN(line, "—", 2)
 			if len(parts) == 2 {
 				agentName = strings.TrimSpace(parts[1])
 			}
 		}
-		// Parse "the digital twin of OwnerName" line
 		if strings.Contains(line, "digital twin of") {
 			parts := strings.SplitN(line, "digital twin of", 2)
 			if len(parts) == 2 {
@@ -64,28 +58,21 @@ func resolveAgentIdentity() (agentName, ownerName string) {
 	return
 }
 
-// writeWorkspaceFiles generates workspace markdown files.
-// tools may be nil when called after the soul step before OAuth connects.
-//
-// Two categories:
-//   - User-owned (IDENTITY, USER, HEARTBEAT, MEMORY): written once, never overwritten.
-//   - System-managed (AGENTS, TOOLS): always regenerated so they stay in sync
-//     with whatever tools are currently installed or removed from claw-tools.dev.
 func writeWorkspaceFiles(tools []ClawTool, agentName, ownerName string) {
 	ensureWorkspaceDirs()
 
-	// User-owned — write once, respect any edits the user has made
+	// User-owned — write once, never overwrite
 	writeIfAbsent(workspacePath("IDENTITY.md"), generateIdentityMD(agentName, ownerName))
 	writeIfAbsent(workspacePath("USER.md"), generateUserMD(ownerName))
 	writeIfAbsent(workspacePath("HEARTBEAT.md"), generateHeartbeatMD())
 	writeIfAbsent(workspacePath("MEMORY.md"), "# Memory\n\n<!-- PicoClaw appends learnings here over time -->\n")
 
-	// System-managed — always regenerated to reflect current installed tools
+	// System-managed — always regenerated
 	writeAlways(workspacePath("AGENTS.md"), generateAgentsMD(tools))
 	writeAlways(workspacePath("TOOLS.md"), generateToolsMD(tools))
+	writeAlways(workspacePath("SKILLS.md"), generateSkillRoutingMD(tools))
 }
 
-// writeIfAbsent writes content to path only if the file does not already exist.
 func writeIfAbsent(path, content string) {
 	if _, err := os.Stat(path); err == nil {
 		fmt.Fprintf(os.Stderr, "workspace: %s already exists — skipping\n", filepath.Base(path))
@@ -98,8 +85,6 @@ func writeIfAbsent(path, content string) {
 	fmt.Fprintf(os.Stderr, "workspace: wrote %s\n", filepath.Base(path))
 }
 
-// writeAlways writes content to path every time, overwriting any existing content.
-// Used for system-managed files that must stay in sync with installed tools.
 func writeAlways(path, content string) {
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "workspace: could not write %s: %v\n", filepath.Base(path), err)
@@ -203,31 +188,41 @@ func generateAgentsMD(tools []ClawTool) string {
 - Never claim you cannot access email or calendar — you have local tools for both
 - Prefer action over explanation: do the thing, then briefly say what you did
 
+## Tool Routing — STRICT RULES
+These rules override everything else. Follow them exactly.
+
+| Request type | Tool to use | Never use |
+|---|---|---|
+| Email, inbox, messages, invoices, receipts, unread | gmail exec script (see SKILLS.md) | web_search |
+| Calendar, schedule, meetings, events, today | gcal exec script (see SKILLS.md) | web_search |
+| Public info, news, facts, how-to, external websites | web_search | gmail/gcal tools |
+
+- NEVER use web_search to access email or calendar data
+- NEVER search site:gmail.com, site:calendar.google.com, or any private service
+- If a SKILLS.md exec script exists for a task, it ALWAYS takes priority over web_search
+- web_search is for the public internet ONLY
+
 ## When to use tools
 
 ### Email
-Use Gmail tools when the user:
-- Asks about email, inbox, messages, or unread items
-- Mentions a person and wants to know if they emailed
-- Asks for a morning briefing or daily summary
-- Says "check my email" or "what did I miss"
+Trigger: user asks about email, inbox, messages, unread items, invoices, receipts,
+mentions a person and wants to know if they emailed, asks for morning briefing.
+Action: use gmail exec script from SKILLS.md — do NOT use web_search.
 
 Always fetch the last 24 hours unless a different window is specified.
 Filter out newsletters, promotions, and automated notifications unless explicitly asked.
 Surface: direct emails from real people, replies to threads, emails with action items.
 
 ### Calendar
-Use Google Calendar tools when the user:
-- Asks about their day, schedule, meetings, or appointments
-- Asks what is coming up, what is next, or how the week looks
-- Is preparing for the morning briefing (always include calendar)
+Trigger: user asks about their day, schedule, meetings, appointments, what is coming up.
+Action: use gcal exec script from SKILLS.md — do NOT use web_search.
 
 Always include today's events in a morning briefing.
 Flag back-to-back meetings, early starts, or late finishes.
 
 ### Morning briefing
-Trigger automatically via HEARTBEAT.md at the scheduled time.
-Can also be triggered on demand: "briefing", "morning summary", "what's on today".
+Trigger: scheduled via HEARTBEAT.md, or on demand ("briefing", "morning summary", "what's on today").
+Action: run BOTH gmail and gcal exec scripts, then compose the briefing.
 
 Structure:
 1. Good morning greeting with the date
@@ -238,9 +233,8 @@ Structure:
 
 ### Notetaker emails
 Otter.ai, Fireflies.ai, Fathom, and similar tools send summary emails after meetings.
-Identify them by subject line patterns: "meeting summary", "transcript", "recording", "your fathom".
-Extract the meeting title, attendees, and key decisions or action items.
-Present them as a clean bullet list — not the raw email body.
+Identify by subject: "meeting summary", "transcript", "recording", "your fathom".
+Extract meeting title, attendees, key decisions. Present as clean bullet list.
 
 ## Output format rules
 - Use plain text with minimal markdown
@@ -335,5 +329,45 @@ Flag: back-to-back meetings (< 5 min gap), events before 8 AM or after 6 PM.
 		}
 	}
 
+	return sb.String()
+}
+
+func generateSkillRoutingMD(tools []ClawTool) string {
+	home, _ := os.UserHomeDir()
+	workspaceBin := filepath.Join(home, ".picoclaw", "workspace", "bin")
+	getEmailsScript := filepath.Join(workspaceBin, "get_emails.sh")
+	getCalendarScript := filepath.Join(workspaceBin, "get_calendar.sh")
+
+	hasMail := false
+	hasCal := false
+	for _, t := range tools {
+		if t.ID == "gmail" {
+			hasMail = true
+		}
+		if t.ID == "gcal" {
+			hasCal = true
+		}
+	}
+
+	var sb strings.Builder
+	sb.WriteString("# SKILLS.md — Exec tool reference\n\n")
+	sb.WriteString("## CRITICAL: Use these exact exec commands. NEVER substitute web_search for email or calendar.\n\n")
+
+	if hasMail {
+		sb.WriteString(fmt.Sprintf("## Email — gmail\n\nexec: %s\n\nUse for: inbox, unread, invoices, receipts, messages, any email query.\nNEVER use web_search for email — this exec script is the ONLY correct tool.\n\n", getEmailsScript))
+	}
+	if hasCal {
+		sb.WriteString(fmt.Sprintf("## Calendar — gcal\n\nexec: %s\n\nUse for: today's schedule, meetings, events, appointments.\nNEVER use web_search for calendar — this exec script is the ONLY correct tool.\n\n", getCalendarScript))
+	}
+	if !hasMail && !hasCal {
+		sb.WriteString("No tools connected yet. Complete OAuth in the wizard to enable Gmail and Google Calendar.\n")
+	}
+
+	sb.WriteString(`## Rules
+- These scripts return JSON — parse result.content[0].text and present as readable text
+- Empty array → say "No emails found" or "Nothing on the calendar today"
+- NEVER use web_search as a fallback for email or calendar
+- NEVER search site:gmail.com or site:calendar.google.com
+`)
 	return sb.String()
 }

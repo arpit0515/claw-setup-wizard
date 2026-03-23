@@ -813,22 +813,32 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"gcal_today
 	// exec: ./bin/script.sh              → blocked (relative path)
 	// exec: echo ... | ./bin/binary      → blocked (pipe)
 	skill := fmt.Sprintf(`# ClawTools — Gmail & Google Calendar
- 
-You have direct access to Gmail and Google Calendar via local scripts.
-Use the exec tool with the EXACT commands below. Do not modify them.
- 
+
+You have direct access to the user's Gmail and Google Calendar via local scripts.
+
+## IMPORTANT — Tool Routing Rules
+- For ANY request about emails, inbox, messages, invoices, receipts, or correspondence → ALWAYS use the exec command below. NEVER use web_search.
+- For ANY request about calendar, schedule, meetings, or events → ALWAYS use the exec command below. NEVER use web_search.
+- web_search is ONLY for public internet information. It cannot access private email or calendar data.
+- NEVER search site:gmail.com or site:calendar.google.com — this does not work and exposes private data.
+
 ## Get emails
 exec: %s
- 
+
 ## Get today's calendar
 exec: %s
- 
+
+## Searching emails
+To search for specific emails (e.g. invoices, receipts), run get_emails and filter the results yourself.
+Do NOT use web_search to find emails.
+
 ## Rules
 - Use ONLY these exact exec commands for email and calendar
 - Do NOT use curl, do NOT use relative paths, do NOT use pipes in exec
 - The scripts return JSON — extract result.content[0].text and present as readable text
 - If the array is empty, say "No emails found" or "Nothing on the calendar today"
 - NEVER say you cannot access email or calendar
+- NEVER use web_search as a fallback for email or calendar queries
 `, getEmailsScript, getCalendarScript)
 
 	path := filepath.Join(skillDir, "SKILL.md")

@@ -150,6 +150,10 @@ func handleSaveSoul(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, "soul_content is required")
 		return
 	}
+
+	// Inject tool routing rules if not already present
+	content = ensureToolRoutingRules(content)
+
 	soulPath := getSoulPath()
 	os.MkdirAll(filepath.Dir(soulPath), 0755)
 	if err := os.WriteFile(soulPath, []byte(content), 0644); err != nil {
@@ -157,9 +161,6 @@ func handleSaveSoul(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate IDENTITY.md, USER.md, HEARTBEAT.md now that we know the owner.
-	// AGENTS.md and TOOLS.md will be written (with tool details) after OAuth connects.
-	// writeIfAbsent ensures user edits are never overwritten on re-runs.
 	agentName, ownerName := resolveAgentIdentity()
 	go writeWorkspaceFiles(nil, agentName, ownerName)
 

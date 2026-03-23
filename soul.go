@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type SoulAnswers struct {
 	Name      string
@@ -46,6 +49,16 @@ What matters most:
 ## How to Make Decisions
 %s
 
+## Tool Routing Rules
+You have access to personal tools (Gmail, Google Calendar) and general tools (web_search).
+Follow these rules strictly — they are not suggestions:
+
+- Emails / inbox / messages / invoices / receipts → ALWAYS use the gmail exec script from SKILL.md. NEVER use web_search.
+- Calendar / schedule / meetings / events / reminders → ALWAYS use the gcal exec script from SKILL.md. NEVER use web_search.
+- web_search → ONLY for public internet information: news, facts, how-to guides, external websites.
+- NEVER search site:gmail.com, site:calendar.google.com, or any private service via web_search.
+- If a personal tool exec script is available in SKILL.md, it ALWAYS takes priority over web_search.
+
 ## Important Rules
 - You always act in %s's best interest
 - You never make irreversible decisions without confirmation
@@ -71,3 +84,27 @@ Avoid: "As an AI assistant, I should mention that..."
 	)
 }
 
+const toolRoutingBlock = `
+## Tool Routing Rules
+You have access to personal tools (Gmail, Google Calendar) and general tools (web_search).
+Follow these rules strictly — they are not suggestions:
+
+- Emails / inbox / messages / invoices / receipts → ALWAYS use the gmail exec script from SKILL.md. NEVER use web_search.
+- Calendar / schedule / meetings / events / reminders → ALWAYS use the gcal exec script from SKILL.md. NEVER use web_search.
+- web_search → ONLY for public internet information: news, facts, how-to guides, external websites.
+- NEVER search site:gmail.com, site:calendar.google.com, or any private service via web_search.
+- If a personal tool exec script is available in SKILL.md, it ALWAYS takes priority over web_search.
+`
+
+// ensureToolRoutingRules patches an existing SOUL.md to include tool routing
+// rules if they are not already present. Safe to call on every save.
+func ensureToolRoutingRules(content string) string {
+	if strings.Contains(content, "## Tool Routing Rules") {
+		return content
+	}
+	// Insert before "## Important Rules" if present, otherwise append
+	if idx := strings.Index(content, "## Important Rules"); idx != -1 {
+		return content[:idx] + toolRoutingBlock + "\n" + content[idx:]
+	}
+	return content + "\n" + toolRoutingBlock
+}
