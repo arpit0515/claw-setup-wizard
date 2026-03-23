@@ -542,7 +542,10 @@ func copyFile(src, dst string) error {
 // Returns the path to the go binary on success.
 func installGoOnRaspberryPi() (string, error) {
 	const goVersion = "1.22.4"
-	const installDir = "/usr/local"
+	installDir := os.Getenv("HOME")
+	if installDir == "" {
+		installDir = "/tmp"
+	}
 	goBin := filepath.Join(installDir, "go", "bin", "go")
 
 	// Detect machine architecture the same way handleInstallPicoclaw does.
@@ -716,7 +719,7 @@ func autoConfigureFromRegistry() {
 		return
 	}
 
-	goBin := "/usr/local/go/bin/go"
+	goBin := filepath.Join(home, "go", "bin", "go")
 	if _, err := os.Stat(goBin); err != nil {
 		if path, err := exec.LookPath("go"); err == nil {
 			goBin = path
