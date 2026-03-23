@@ -6,15 +6,10 @@ GIT_COMMIT      := $(shell git rev-parse --short=8 HEAD 2>/dev/null || echo "dev
 BUILD_TIME      := $(shell date +%FT%T%z)
 
 # ── Secret injection ───────────────────────────────────────────────────────────
-# Pass via environment or command line, e.g.:
+# Pass via environment or command line:
 #   CLAW_API_SECRET=abc123 make build-all
-#   make build-all CLAW_API_SECRET=abc123
-# Never hardcode the secret here — keep it out of git.
+#   source .env && make build-all   (.env file, never committed to git)
 CLAW_API_SECRET ?=
-
-ifeq ($(CLAW_API_SECRET),)
-$(warning WARNING: CLAW_API_SECRET is not set. Binary will have no API secret.)
-endif
 
 LDFLAGS := -ldflags "-X main.clawAPISecret=$(CLAW_API_SECRET) \
                       -X main.Version=$(VERSION) \
@@ -29,13 +24,26 @@ GOFLAGS ?= -v
 
 .PHONY: all build build-all build-pi build-pi-zero \
         build-linux-arm64 build-linux-arm build-linux-amd64 build-darwin-arm64 \
-        install clean deps run help
+        install clean deps run help _check-secret
+
+# Runtime guard — runs before any build target
+_check-secret:
+	@if [ -z "$(CLAW_API_SECRET)" ]; then \
+		echo ""; \
+		echo "  ERROR: CLAW_API_SECRET is not set."; \
+		echo ""; \
+		echo "  Option 1:  CLAW_API_SECRET=<secret> make $(MAKECMDGOALS)"; \
+		echo "  Option 2:  source .env && make $(MAKECMDGOALS)"; \
+		echo "             (create .env with: CLAW_API_SECRET=<secret>)"; \
+		echo ""; \
+		exit 1; \
+	fi
 
 ## Default: build for current machine
 all: build
 
 ## Build for the current OS/arch
-build:
+build: _check-secret
 	@mkdir -p $(BUILD_DIR)
 	$(GO) build $(GOFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) $(CMD_DIR)
 	@echo "✓ Built: $(BUILD_DIR)/$(BINARY_NAME)"
@@ -46,28 +54,28 @@ build-all: build-linux-arm64 build-linux-arm build-linux-amd64 build-darwin-arm6
 	@ls -lh $(BUILD_DIR)/
 
 ## Build for Pi 4, Pi 5, Pi Zero 2W (64-bit OS)
-build-linux-arm64:
+build-linux-arm64: _check-secret
 	@mkdir -p $(BUILD_DIR)
 	GOOS=linux GOARCH=arm64 $(GO) build $(LDFLAGS) \
 		-o $(BUILD_DIR)/$(BINARY_NAME)-linux-arm64 $(CMD_DIR)
 	@echo "✓ Built: $(BUILD_DIR)/$(BINARY_NAME)-linux-arm64"
 
 ## Build for Pi Zero, Pi Zero W, Pi Zero 2W (32-bit OS)
-build-linux-arm:
+build-linux-arm: _check-secret
 	@mkdir -p $(BUILD_DIR)
 	GOOS=linux GOARCH=arm GOARM=6 $(GO) build $(LDFLAGS) \
 		-o $(BUILD_DIR)/$(BINARY_NAME)-linux-arm $(CMD_DIR)
 	@echo "✓ Built: $(BUILD_DIR)/$(BINARY_NAME)-linux-arm"
 
 ## Build for x86 Linux (servers, VMs, desktops)
-build-linux-amd64:
+build-linux-amd64: _check-secret
 	@mkdir -p $(BUILD_DIR)
 	GOOS=linux GOARCH=amd64 $(GO) build $(LDFLAGS) \
 		-o $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 $(CMD_DIR)
 	@echo "✓ Built: $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64"
 
 ## Build for macOS Apple Silicon (M1/M2/M3)
-build-darwin-arm64:
+build-darwin-arm64: _check-secret
 	@mkdir -p $(BUILD_DIR)
 	GOOS=darwin GOARCH=arm64 $(GO) build $(LDFLAGS) \
 		-o $(BUILD_DIR)/$(BINARY_NAME)-darwin-arm64 $(CMD_DIR)
@@ -92,8 +100,8 @@ deps:
 	$(GO) mod tidy
 	@echo "✓ Dependencies ready"
 
-## Run locally (dev mode) — secret still required
-run:
+## Run locally (dev mode)
+run: _check-secret
 	$(GO) run $(LDFLAGS) $(CMD_DIR)
 
 ## Remove all build artifacts
@@ -106,11 +114,12 @@ help:
 	@echo ""
 	@echo "  claw-setup-wizard — build targets"
 	@echo ""
-	@echo "  Required env var:"
-	@echo "    CLAW_API_SECRET=<secret>   injected into binary via -ldflags"
+	@echo "  Required:"
+	@echo "    CLAW_API_SECRET=<secret>   injected into binary at build time"
 	@echo ""
 	@echo "  Usage:"
 	@echo "    CLAW_API_SECRET=abc123 make build-all"
+	@echo "    source .env && make build-all"
 	@echo ""
 	@echo "  Targets:"
 	@echo "    make build               Build for current machine"
@@ -126,3 +135,4 @@ help:
 	@echo "    make run                 Run locally"
 	@echo "    make clean               Remove build artifacts"
 	@echo ""
+	
